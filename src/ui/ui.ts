@@ -4,13 +4,14 @@ import { getMods, invalidateMods, essenceForRun, ascensionShardsAvailable, shard
 import { fmt, fmtInt, fmtTime } from '../core/format';
 import { iconImg, iconURL } from '../art/fx';
 import { spriteIcon } from '../art/assets';
-import { UPGRADES, upgradeCost, META_NODES, META_BRANCHES, metaCost, TRAITS, SKILLS, skillCost, masteryCost } from '../data/upgrades';
+import { UPGRADES, upgradeCost, META_NODES, META_BRANCHES, META_ROOT, metaCost, metaNodePos, TRAITS, SKILLS, skillCost, masteryCost, type MetaNode } from '../data/upgrades';
 import { CLASSES, CLASS_ORDER, ROLE_NAMES, TIER_LEVELS, type ClassId, type Role } from '../data/units';
 import { ENEMIES, ENEMY_ORDER } from '../data/enemies';
 import { BOSSES, BOSS_ORDER } from '../data/bosses';
 import { REGIONS, WAVES_PER_REGION, isInfinite, visualRegionForWave } from '../data/regions';
 import { recruitCost, pickRecruitClass, mergeTrio, mergeCandidates, applyStats } from '../battle/army';
 import { audio } from '../audio/audio';
+import { HEROES, HERO_ORDER, MAX_STARS } from '../data/heroes';
 import { shuffle } from '../core/util';
 import type { BattleScene } from '../scenes/BattleScene';
 
@@ -84,65 +85,104 @@ class UIManager {
   // ================================================================ HUD
   private buildHud() {
     this.hud.innerHTML = `
-    <div class="topbar">
-      <div class="logo" data-act="pause"><span class="l1">Kill All the</span><span class="l2">Demons</span></div>
-      <div class="pill gold" data-act="open:upgrades">${iconImg('coin')}<b id="h-gold">0</b><i class="plus">+</i></div>
-      <div class="pill gem" data-act="open:traits">${iconImg('gem')}<b id="h-ess">0</b></div>
-      <div class="life">
-        <div class="wing l"></div><div class="wing r"></div>
+    <div class="tb-left plate">
+      <div class="logo mini" data-act="pause"><span class="l1">Kill All the</span><span class="l2">Demons</span></div>
+      <div class="res gold" data-act="open:upgrades">${iconImg('coin')}<b id="h-gold">0</b><i class="plus">+</i></div>
+      <div class="res gem" data-act="open:traits">${iconImg('gem')}<b id="h-ess">0</b></div>
+    </div>
+    <div class="lifebox">
+      <div class="life-emblem">${iconImg('heart', 'ico heart')}</div>
+      <div class="life-main">
         <div class="life-label">Vida do Comandante</div>
-        <div class="life-row">${iconImg('heart', 'ico heart')}<div class="bar life-bar"><i id="h-life-fill"></i><span id="h-life">0</span></div></div>
+        <div class="bar life-bar"><i id="h-life-fill"></i><span id="h-life">0</span></div>
       </div>
-      <div class="pill units" data-act="open:formation">${iconImg('people')}<b id="h-units">0</b></div>
-      <div class="pill wave" data-act="open:traits">${iconImg('wave')}<span>Onda</span><b id="h-wave">1</b><span id="h-inf" class="inf">∞</span></div>
-      <div class="pill speed" data-act="speed" id="h-speed">1x</div>
+    </div>
+    <div class="tb-right plate">
+      <div class="res units" data-act="open:formation">${iconImg('people')}<b id="h-units">0</b></div>
+      <div class="res wave" data-act="open:traits">${iconImg('wave')}<b id="h-wave">1</b><span id="h-inf" class="inf">∞</span></div>
+      <div class="res speed" data-act="speed" id="h-speed">1x</div>
       <div class="gearbtn" data-act="pause">${iconImg('gear')}</div>
     </div>
+    <div class="ribbon" id="h-region"><span id="h-region-name"></span><div class="wprog"><i id="h-wprog"></i></div></div>
     <div class="bossbar hidden" id="h-boss">
       <div class="bossface"><img id="h-boss-ico"></div>
-      <div class="bossmain"><div class="bname" id="h-boss-name"></div><div class="bar boss"><i id="h-boss-fill"></i><span id="h-boss-hp"></span></div></div>
-      <div class="bphase" id="h-boss-phase">×1</div>
+      <div class="bossmain"><div class="bname"><span id="h-boss-name"></span><em id="h-boss-phase">Fase 1</em></div><div class="bar boss"><i id="h-boss-fill"></i><span id="h-boss-hp"></span></div></div>
     </div>
-    <div class="regionline" id="h-region"><span id="h-region-name"></span><div class="wprog"><i id="h-wprog"></i></div></div>
-    <div class="leftcol">
-      <div class="card evo" data-act="open:blessing">
-        ${iconImg('evo')}<div class="ct">Progresso de Evolução</div>
-        <div class="lv">Nv. <b id="h-alv">1</b></div>
+    <div class="leftdock">
+      <div class="evo plate" data-act="open:blessing">
+        <div class="evo-top">${iconImg('evo')}<span>Evolução</span><b>Nv <span id="h-alv">1</span></b></div>
         <div class="bar small"><i id="h-axp-fill"></i><span id="h-axp"></span></div>
         <div class="badge hidden" id="h-evo-badge">!</div>
       </div>
-      <div class="card auto" data-act="toggle:autoBless">${iconImg('infinity')}<div class="ct">Auto<br>Bênção</div><div class="sw" id="h-auto">OFF</div></div>
-      <div class="card small" data-act="open:traits">${iconImg('traits')}<span>Bênçãos</span></div>
-      <div class="card small" data-act="open:codex">${iconImg('book')}<span>Códex</span></div>
+      <div class="heroes" id="h-heroes"></div>
+      <div class="dockbtns">
+        <div class="dbtn" data-act="toggle:autoBless" title="Escolher cartas automaticamente">${iconImg('infinity')}<span>Auto</span><em id="h-auto">OFF</em></div>
+        <div class="dbtn" data-act="open:traits">${iconImg('traits')}<span>Legado</span></div>
+        <div class="dbtn" data-act="open:codex">${iconImg('book')}<span>Códex</span></div>
+      </div>
     </div>
-    <div class="statspanel">
-      <div class="sp-title">${iconImg('evo')}<span>Batalha (Ao vivo)</span></div>
-      <div class="sp-row">${iconImg('sword')}<span>DPS</span><b id="h-dps">0</b></div>
-      <div class="sp-row">${iconImg('shield')}<span>Tanque</span><b id="h-tank">0</b></div>
-      <div class="sp-row">${iconImg('heart')}<span>Cura</span><b id="h-heal">0</b></div>
-      <div class="sp-row">${iconImg('star')}<span>Tropas</span><b id="h-ucount">0</b></div>
-      <div class="sp-row">${iconImg('skull')}<span>Abates</span><b id="h-kills">0</b></div>
+    <div class="statspanel plate" id="h-stats" data-act="statsToggle">
+      <div class="sp-title">${iconImg('evo')}<span>Batalha ao vivo</span><i id="h-stats-arrow">▾</i></div>
+      <div class="sp-body">
+        <div class="sp-row">${iconImg('sword')}<span>DPS</span><b id="h-dps">0</b></div>
+        <div class="sp-row">${iconImg('shield')}<span>Tanque</span><b id="h-tank">0</b></div>
+        <div class="sp-row">${iconImg('heart')}<span>Cura</span><b id="h-heal">0</b></div>
+        <div class="sp-row">${iconImg('star')}<span>Em campo</span><b id="h-ucount">0</b></div>
+        <div class="sp-row">${iconImg('skull')}<span>Abates</span><b id="h-kills">0</b></div>
+      </div>
     </div>
     <div class="bottombar">
       <div class="summon" data-act="recruit">
-        <div class="cardart">${iconImg('cls_militia', 'ico big')}</div>
-        <div class="st"><div class="t1">Convocar Tropa</div><div class="cost">${iconImg('coin')}<b id="h-rcost">0</b></div></div>
+        <div class="cardart"><img class="ico big" id="h-rart"></div>
+        <div class="st"><div class="t1">Convocar</div><div class="cost">${iconImg('coin', 'ico tiny')}<b id="h-rcost">0</b></div></div>
         <div class="rbar"><i id="h-rtimer"></i></div>
       </div>
-      <div class="bbtn" data-act="open:classes">${iconImg('evo', 'ico mid')}<span>Classes /<br>Evoluir</span><div class="badge hidden" id="b-classes">!</div></div>
+      <div class="bbtn" data-act="open:classes">${iconImg('evo', 'ico mid')}<span>Classes</span><div class="badge hidden" id="b-classes">!</div></div>
       <div class="bbtn" data-act="open:upgrades">${iconImg('speed', 'ico mid')}<span>Melhorias</span><div class="badge hidden" id="b-upg">!</div></div>
       <div class="bbtn" data-act="open:formation">${iconImg('people', 'ico mid')}<span>Formação</span></div>
-      <div class="bbtn" data-act="open:skills">${iconImg('fire', 'ico mid')}<span>Habilidades<br>do Comandante</span><div class="badge hidden" id="b-skills">!</div></div>
+      <div class="bbtn" data-act="open:skills">${iconImg('fire', 'ico mid')}<span>Comandante</span><div class="badge hidden" id="b-skills">!</div></div>
       <div class="skillrow">
-        ${SKILLS.map((s, i) => `<div class="skill" data-act="cast:${i}" id="sk-${i}">${iconImg(s.icon, 'ico sk')}<div class="cd" id="skcd-${i}"></div><div class="lock" id="sklock-${i}">${iconImg('pause', 'ico tiny')}</div><span class="key">${i + 1}</span></div>`).join('')}
+        ${SKILLS.map((s, i) => `<div class="skill" data-act="cast:${i}" id="sk-${i}">${iconImg(s.icon, 'ico sk')}<div class="cd" id="skcd-${i}"></div><div class="lock" id="sklock-${i}">🔒</div><span class="key">${i + 1}</span></div>`).join('')}
       </div>
     </div>`;
     this.hud.querySelectorAll('[id]').forEach((el) => { this.els[el.id] = el as HTMLElement; });
-    // lock icons: draw padlock-ish with css instead of pause icon
-    this.hud.querySelectorAll('.lock').forEach((el) => { el.innerHTML = '🔒'; });
   }
 
-  showHud() { this.hud.classList.remove('hidden'); this.hudVisible = true; this.hideScreen(); this.updateHud(); }
+  statsCollapsed = false;
+  heroKey = '';
+
+  private renderHeroes() {
+    const run = G.run!;
+    const ctl = this.scene!.heroes;
+    const key = ctl.list.map((r) => r.id + (run.heroes[r.id] || 0)).join(',') + '/' + getMods().heroSlots;
+    const box = this.els['h-heroes'];
+    if (key !== this.heroKey) {
+      this.heroKey = key;
+      const slots = getMods().heroSlots;
+      let html = ctl.list.map((rt) => {
+        const st = run.heroes[rt.id] || 0;
+        const col = '#' + rt.def.aura.toString(16).padStart(6, '0');
+        return `<div class="hport" data-act="hero:${rt.id}" style="--hc:${col}">
+          <img src="${spriteIcon('hero_' + rt.id)}"><div class="hstars">${'★'.repeat(st)}</div>
+          <div class="hhp"><i data-hhp="${rt.id}"></i></div><div class="hcd" data-hcd="${rt.id}"></div><div class="hdead" data-hdead="${rt.id}"></div>
+        </div>`;
+      }).join('');
+      for (let i = ctl.list.length; i < slots; i++) html += `<div class="hport empty" data-act="open:blessing"><span>+</span></div>`;
+      box.innerHTML = html;
+    }
+    for (const rt of ctl.list) {
+      const e = rt.e;
+      const hp = box.querySelector(`[data-hhp="${rt.id}"]`) as HTMLElement | null;
+      const cd = box.querySelector(`[data-hcd="${rt.id}"]`) as HTMLElement | null;
+      const dead = box.querySelector(`[data-hdead="${rt.id}"]`) as HTMLElement | null;
+      const alive = !!(e && e.alive);
+      if (hp) hp.style.width = `${alive ? Math.max(0, e!.hp / e!.maxHp) * 100 : 0}%`;
+      if (cd) cd.style.background = alive ? `conic-gradient(transparent ${(1 - ctl.cdFrac(rt)) * 360}deg, rgba(8,4,16,.55) 0deg)` : 'transparent';
+      if (dead) { dead.style.display = alive ? 'none' : 'flex'; dead.textContent = alive ? '' : `${Math.ceil(rt.respawn)}s`; }
+    }
+  }
+
+  showHud() { this.hud.classList.remove('hidden'); this.hudVisible = true; this.hideScreen(); this.heroKey = ''; this.updateHud(); }
   hideHud() { this.hud.classList.add('hidden'); this.hudVisible = false; }
 
   updateHud() {
@@ -157,16 +197,14 @@ class UIManager {
     e['h-life-fill'].style.width = `${lifePct * 100}%`;
     e['h-life'].textContent = `${fmtInt(Math.ceil(run.fortHp))} / ${fmtInt(m.fortMax)}`;
     e['h-life-fill'].parentElement!.classList.toggle('danger', lifePct < 0.3);
-    e['h-units'].textContent = `${sc.world.armyCount()} / ${m.cap}`;
-    e['h-wave'].textContent = String(run.wave);
+    e['h-units'].textContent = `${sc.world.armyCount()}/${m.cap}`;
+    e['h-wave'].textContent = `Onda ${run.wave}`;
     e['h-inf'].style.display = isInfinite(run.wave) ? '' : 'none';
     e['h-speed'].textContent = `${G.settings.speed}x`;
-    // region / wave progress
     const vr = visualRegionForWave(run.wave);
     const lw = ((run.wave - 1) % WAVES_PER_REGION) + 1;
     e['h-region-name'].textContent = isInfinite(run.wave) ? `Guerra Infinita • ${REGIONS[vr].name}` : `${REGIONS[vr].name} • ${lw}/${WAVES_PER_REGION}`;
     e['h-wprog'].style.width = `${sc.waves.progress() * 100}%`;
-    // boss bar
     const b = sc.world.bossRef && sc.world.bossRef.alive ? sc.world.bossRef : sc.boss.list.find((c) => c.e.alive)?.e || null;
     if (b) {
       e['h-boss'].classList.remove('hidden');
@@ -179,37 +217,35 @@ class UIManager {
       e['h-boss-fill'].style.width = `${Math.max(0, b.hp / b.maxHp) * 100}%`;
       e['h-boss-hp'].textContent = `${fmt(Math.max(0, b.hp))} / ${fmt(b.maxHp)}`;
       const ph = b.hp / b.maxHp < 0.33 ? 3 : b.hp / b.maxHp < 0.66 ? 2 : 1;
-      e['h-boss-phase'].textContent = `Fase ${ph}`;
+      e['h-boss-phase'].textContent = isBoss ? `Fase ${ph}` : 'Miniboss';
     } else { e['h-boss'].classList.add('hidden'); e['h-region'].classList.remove('hidden'); }
-    // evolution
     const need = armyXpNeeded(run.armyLevel);
     e['h-alv'].textContent = String(run.armyLevel);
     e['h-axp-fill'].style.width = `${Math.min(1, run.armyXp / need) * 100}%`;
     e['h-axp'].textContent = `${fmt(run.armyXp)} / ${fmt(need)}`;
     e['h-evo-badge'].classList.toggle('hidden', run.pendingBless <= 0);
+    e['h-evo-badge'].textContent = run.pendingBless > 1 ? String(run.pendingBless) : '!';
     e['h-auto'].textContent = run.autoBless ? 'ON' : 'OFF';
     e['h-auto'].classList.toggle('on', run.autoBless);
-    // stats
+    this.renderHeroes();
     e['h-dps'].textContent = fmt(sc.world.live.dps);
     e['h-tank'].textContent = fmt(sc.world.live.tank);
     e['h-heal'].textContent = fmt(sc.world.live.heal);
-    e['h-ucount'].textContent = String(sc.world.armyCount() + sc.world.summonCount());
+    e['h-ucount'].textContent = String(sc.world.allies.length);
     e['h-kills'].textContent = fmt(run.stats.kills);
-    // recruit
     const cls = this.nextRecruitPreview();
     const cost = cls ? recruitCost(sc.world, cls) : 0;
     e['h-rcost'].textContent = fmt(cost);
-    e['h-rcost'].parentElement!.parentElement!.parentElement!.classList.toggle('poor', run.gold < cost || sc.world.armyCount() >= m.cap);
+    if (cls && e['h-rart'].dataset.k !== cls) { (e['h-rart'] as HTMLImageElement).src = spriteIcon('cls_' + cls); e['h-rart'].dataset.k = cls; }
+    e['h-rcost'].closest('.summon')!.classList.toggle('poor', run.gold < cost || sc.world.armyCount() >= m.cap);
     e['h-rtimer'].style.width = `${run.autoRecruit ? Math.min(1, sc.recruitT / m.recruitInterval) * 100 : 0}%`;
-    // badges
     e['b-upg'].classList.toggle('hidden', !UPGRADES.some((u) => (u.max == null || (run.upgrades[u.id] || 0) < u.max) && upgradeCost(u, run.upgrades[u.id] || 0) <= run.gold));
     e['b-classes'].classList.toggle('hidden', !CLASS_ORDER.some((c) => (!run.unlocked.includes(c) && CLASSES[c].unlockGold * this.unlockScale() <= run.gold) || (run.unlocked.includes(c) && mergeCandidates(sc.world, c) > 0)));
     e['b-skills'].classList.toggle('hidden', !SKILLS.some((s, i) => skillCost(s, run.skillLv[i]) <= run.gold && run.skillLv[i] === 0));
-    // skills
     for (let i = 0; i < 4; i++) {
       const lv = run.skillLv[i];
       const cd = sc.skills.cd[i], max = sc.skills.maxCd(i);
-      e[`skcd-${i}`].style.background = lv > 0 && cd > 0 ? `conic-gradient(rgba(10,4,16,.75) ${(cd / max) * 360}deg, transparent 0deg)` : 'transparent';
+      e[`skcd-${i}`].style.background = lv > 0 && cd > 0 ? `conic-gradient(rgba(10,4,16,.78) ${(cd / max) * 360}deg, transparent 0deg)` : 'transparent';
       e[`sklock-${i}`].style.display = lv > 0 ? 'none' : '';
       e[`sk-${i}`].classList.toggle('ready', lv > 0 && cd <= 0);
     }
@@ -284,10 +320,11 @@ class UIManager {
             <div>Essência total: <b>${fmt(G.meta.essenceTotal)}</b></div>
           </div>
         </div>
-        <div class="camp-main">${this.campContent(tab)}</div>
+        <div class="camp-main ${tab === 'tree' ? 'full' : ''}">${this.campContent(tab)}</div>
       </div>
     </div>`;
     this.screenEl.classList.add('show');
+    if (tab === 'tree') this.bindTree();
   }
 
   private campContent(tab: CampTab): string {
@@ -327,24 +364,118 @@ class UIManager {
     </div>`;
   }
 
+  // ------------------------------------------------------------ Árvore Eterna (pannable node graph)
+  treeCam = { x: 0, y: 0, z: 0.85, init: false };
+  treeSel: string = 'root';
+
+  private nodeState(n: MetaNode) {
+    const lv = treeLv(n.id);
+    const reqOk = !n.req || n.req.every((r) => treeLv(r) > 0);
+    const maxed = lv >= n.max;
+    const cost = metaCost(n, lv);
+    return { lv, reqOk, maxed, cost, can: reqOk && !maxed && G.meta.essence >= cost };
+  }
+
   private treeView(): string {
-    const cols = META_BRANCHES.map((b) => {
-      const nodes = META_NODES.filter((n) => n.branch === b.id).sort((a, c) => a.row - c.row);
-      return `<div class="tcol" style="--bc:${b.color}"><div class="thead">${b.name}</div>${nodes.map((n) => {
-        const lv = treeLv(n.id);
-        const reqOk = !n.req || n.req.every((r) => treeLv(r) > 0);
-        const maxed = lv >= n.max;
-        const cost = metaCost(n, lv);
-        const can = reqOk && !maxed && G.meta.essence >= cost;
-        const ico = n.icon.startsWith('cls_') ? `<img class="ico" src="${spriteIcon(n.icon)}">` : iconImg(n.icon);
-        return `<div class="tnode ${reqOk ? '' : 'locked'} ${maxed ? 'maxed' : ''} ${can ? 'can' : ''} ${lv > 0 ? 'owned' : ''}" data-act="meta:${n.id}" title="${n.desc(lv + 1)}">
-          ${ico}<div class="tn">${n.name}</div><div class="tl">${lv}/${n.max}</div>
-          <div class="td">${n.desc(Math.max(1, lv))}</div>
-          <div class="tc">${maxed ? 'MÁX' : `${iconImg('gem', 'ico tiny')}${fmt(cost)}`}</div>
-        </div>`;
-      }).join('<div class="tlink"></div>')}</div>`;
+    const OFF = 1300; // canvas origin offset (root sits at OFF,OFF)
+    const color = (b: string) => META_BRANCHES.find((q) => q.id === b)!.color;
+    const lines: string[] = [];
+    for (const n of META_NODES) {
+      const p = metaNodePos(n);
+      const parents = n.req && n.req.length ? n.req.map((r) => META_NODES.find((q) => q.id === r)!).filter(Boolean) : [null];
+      for (const par of parents) {
+        const q = par ? metaNodePos(par) : { x: 0, y: 0 };
+        const lit = treeLv(n.id) > 0;
+        const avail = !n.req || n.req.every((r) => treeLv(r) > 0);
+        lines.push(`<line x1="${q.x + OFF}" y1="${q.y + OFF}" x2="${p.x + OFF}" y2="${p.y + OFF}" stroke="${lit ? color(n.branch) : avail ? '#7a6a9a' : '#3a2e4e'}" stroke-width="${lit ? 6 : 4}" stroke-linecap="round" ${lit ? 'class="lit"' : ''}/>`);
+      }
+    }
+    const labels = META_BRANCHES.map((b) => {
+      const a = (b.angle * Math.PI) / 180;
+      const far = Math.max(...META_NODES.filter((n) => n.branch === b.id).map((n) => n.depth)) * 150 + 130;
+      return `<div class="tbranch" style="left:${Math.cos(a) * far + OFF}px;top:${Math.sin(a) * far + OFF}px;color:${b.color}">${b.name}</div>`;
     }).join('');
-    return `<div class="tree"><div class="tree-hint">Essência Demoníaca: <b>${fmt(G.meta.essence)}</b> • Toque num nó para evoluir. Nós exigem o anterior do mesmo ramo.</div><div class="tcols">${cols}</div></div>`;
+    const nodes = META_NODES.map((n) => {
+      const p = metaNodePos(n);
+      const st = this.nodeState(n);
+      const ico = n.icon.startsWith('cls_') ? `<img class="ico" src="${spriteIcon(n.icon)}">` : iconImg(n.icon);
+      const cls = [st.reqOk ? '' : 'locked', st.maxed ? 'maxed' : '', st.can ? 'can' : '', st.lv > 0 ? 'owned' : '', this.treeSel === n.id ? 'sel' : '', n.max === 1 ? 'key' : ''].join(' ');
+      return `<div class="gnode ${cls}" data-node="${n.id}" style="left:${p.x + OFF}px;top:${p.y + OFF}px;--bc:${color(n.branch)}">${ico}<span class="glv">${st.lv}/${n.max}</span></div>`;
+    }).join('');
+    const root = `<div class="gnode root ${this.treeSel === 'root' ? 'sel' : ''}" data-node="root" style="left:${OFF}px;top:${OFF}px">${iconImg('castle', 'ico big')}</div>`;
+    return `<div class="treewrap">
+      <div class="treeview" id="treeview">
+        <div class="tcanvas" id="tcanvas" style="transform:translate(${this.treeCam.x}px,${this.treeCam.y}px) scale(${this.treeCam.z})">
+          <svg width="2600" height="2600" class="tlines">${lines.join('')}</svg>
+          ${labels}${root}${nodes}
+        </div>
+      </div>
+      <div class="tzoom"><span data-act="tz:in">+</span><span data-act="tz:out">−</span><span data-act="tz:home">⌂</span></div>
+      <div class="tinfo" id="tinfo">${this.treeInfo()}</div>
+    </div>`;
+  }
+
+  private treeInfo(): string {
+    if (this.treeSel === 'root') return `<div class="ti-head">${iconImg('castle', 'ico big')}<div><div class="ti-name">${META_ROOT.name}</div><div class="ti-branch">Raiz</div></div></div>
+      <div class="ti-desc">${META_ROOT.desc}</div><div class="ti-hint">Arraste para mover • role ou use +/− para zoom • toque num nó para ver detalhes</div>
+      <div class="ti-ess">${iconImg('gem')} <b>${fmt(G.meta.essence)}</b> Essência</div>`;
+    const n = META_NODES.find((q) => q.id === this.treeSel)!;
+    const st = this.nodeState(n);
+    const b = META_BRANCHES.find((q) => q.id === n.branch)!;
+    const ico = n.icon.startsWith('cls_') ? `<img class="ico big" src="${spriteIcon(n.icon)}">` : iconImg(n.icon, 'ico big');
+    const reqNames = (n.req || []).map((r) => META_NODES.find((q) => q.id === r)!.name).join(', ');
+    return `<div class="ti-head">${ico}<div><div class="ti-name">${n.name}</div><div class="ti-branch" style="color:${b.color}">${b.name} • Nível ${st.lv}/${n.max}</div></div></div>
+      <div class="ti-desc">${st.lv > 0 ? `Atual: <b>${n.desc(st.lv)}</b><br>` : ''}${st.maxed ? '<b>Nível máximo</b>' : `Próximo: <b class="g">${n.desc(st.lv + 1)}</b>`}</div>
+      ${!st.reqOk ? `<div class="ti-req">🔒 Requer: ${reqNames}</div>` : ''}
+      ${st.maxed ? '' : `<button class="btn ${st.can ? 'gold' : 'disabled'}" data-act="meta:${n.id}">Evoluir • ${iconImg('gem', 'ico tiny')} ${fmt(st.cost)}</button>`}
+      <div class="ti-ess">${iconImg('gem')} <b>${fmt(G.meta.essence)}</b> Essência</div>`;
+  }
+
+  private bindTree() {
+    const view = document.getElementById('treeview');
+    const canvas = document.getElementById('tcanvas');
+    if (!view || !canvas) return;
+    const cam = this.treeCam;
+    const apply = () => { canvas.style.transform = `translate(${cam.x}px,${cam.y}px) scale(${cam.z})`; };
+    if (!cam.init) { cam.init = true; cam.z = 0.8; const r = view.getBoundingClientRect(); const s = this.stageScale(); cam.x = r.width / s / 2 - 1300 * cam.z; cam.y = r.height / s / 2 - 1300 * cam.z; apply(); }
+    const pts = new Map<number, { x: number; y: number }>();
+    let moved = 0, pinch0 = 0, z0 = cam.z;
+    view.onpointerdown = (e) => { view.setPointerCapture(e.pointerId); pts.set(e.pointerId, { x: e.clientX, y: e.clientY }); moved = 0; if (pts.size === 2) { const [a, b] = [...pts.values()]; pinch0 = Math.hypot(a.x - b.x, a.y - b.y); z0 = cam.z; } };
+    view.onpointermove = (e) => {
+      const p = pts.get(e.pointerId);
+      if (!p) return;
+      const s = this.stageScale();
+      if (pts.size === 1) { cam.x += (e.clientX - p.x) / s; cam.y += (e.clientY - p.y) / s; moved += Math.abs(e.clientX - p.x) + Math.abs(e.clientY - p.y); }
+      p.x = e.clientX; p.y = e.clientY;
+      if (pts.size === 2) { const [a, b] = [...pts.values()]; const d = Math.hypot(a.x - b.x, a.y - b.y); this.zoomTree(z0 * (d / pinch0) / cam.z); moved = 99; }
+      apply();
+    };
+    const up = (e: PointerEvent) => {
+      pts.delete(e.pointerId);
+      if (moved < 6 && pts.size === 0) {
+        const el = (document.elementFromPoint(e.clientX, e.clientY) as HTMLElement)?.closest('[data-node]') as HTMLElement | null;
+        if (el) { this.treeSel = el.dataset.node!; document.querySelectorAll('.gnode.sel').forEach((q) => q.classList.remove('sel')); el.classList.add('sel'); document.getElementById('tinfo')!.innerHTML = this.treeInfo(); audio.play('click'); }
+      }
+    };
+    view.onpointerup = up; view.onpointercancel = up;
+    view.onwheel = (e) => { e.preventDefault(); this.zoomTree(e.deltaY < 0 ? 1.12 : 1 / 1.12); };
+  }
+
+  private stageScale() { const t = this.stage.style.transform.match(/scale\(([\d.]+)\)/); return t ? parseFloat(t[1]) : 1; }
+
+  private zoomTree(f: number) {
+    const cam = this.treeCam;
+    const view = document.getElementById('treeview');
+    if (!view) return;
+    const r = view.getBoundingClientRect();
+    const s = this.stageScale();
+    const cx = r.width / s / 2, cy = r.height / s / 2;
+    const nz = Math.max(0.35, Math.min(1.6, cam.z * f));
+    cam.x = cx - ((cx - cam.x) * nz) / cam.z;
+    cam.y = cy - ((cy - cam.y) * nz) / cam.z;
+    cam.z = nz;
+    const c = document.getElementById('tcanvas');
+    if (c) c.style.transform = `translate(${cam.x}px,${cam.y}px) scale(${cam.z})`;
   }
 
   private ascendView(): string {
@@ -383,8 +514,8 @@ class UIManager {
     if (!this.modal) return;
     const titles: Record<string, [string, string]> = {
       upgrades: ['Melhorias da Expedição', 'speed'], classes: ['Classes & Evolução', 'evo'], formation: ['Formação & Recrutamento', 'people'],
-      skills: ['Habilidades do Comandante', 'fire'], blessing: ['Escolha uma Bênção', 'wing'], traits: ['Bênçãos & Legado', 'traits'],
-      codex: ['Códex', 'book'], pause: ['Pausado', 'pause'], result: ['Fim da Expedição', 'skull'], tutorial: ['Como jogar', 'book'], confirm: ['Confirmar', 'skull'],
+      skills: ['Habilidades do Comandante', 'fire'], blessing: ['Cartas de Herói', 'wing'], traits: ['Bênçãos & Legado', 'traits'],
+      codex: ['Códex', 'book'], hero: ['Herói', 'star'], pause: ['Pausado', 'pause'], result: ['Fim da Expedição', 'skull'], tutorial: ['Como jogar', 'book'], confirm: ['Confirmar', 'skull'],
     };
     const [title, ico] = titles[this.modal] || ['', 'book'];
     let body = '';
@@ -396,6 +527,7 @@ class UIManager {
       case 'blessing': body = this.blessingView(); break;
       case 'traits': body = this.traitsView(); break;
       case 'codex': body = this.codexView(); break;
+      case 'hero': body = this.heroView(this.modalArg); break;
       case 'pause': body = this.pauseView(); break;
       case 'result': body = this.resultView(); break;
       case 'tutorial': body = this.tutorialView(); break;
@@ -496,22 +628,51 @@ class UIManager {
     }).join('')}</div>`;
   }
 
+  /** Level-up cards are now Hero cards: recruit a hero or add a star. Generic blessings only fill empty slots. */
   private rollBlessings() {
     const run = G.run!;
-    const pool = TRAITS.filter((t) => (run.traits[t.id] || 0) < t.max && (!t.cls || run.unlocked.includes(t.cls)));
-    this.blessChoices = shuffle(pool.slice()).slice(0, getMods().blessChoices).map((t) => t.id);
+    const m = getMods();
+    const owned = HERO_ORDER.filter((h) => (run.heroes[h] || 0) > 0);
+    const heroOpts: string[] = [];
+    if (owned.length < m.heroSlots) for (const h of HERO_ORDER) if (!run.heroes[h]) heroOpts.push('hr:' + h);
+    for (const h of owned) if (run.heroes[h] < MAX_STARS) heroOpts.push('hp:' + h);
+    const picks = shuffle(heroOpts).slice(0, m.blessChoices);
+    if (picks.length < m.blessChoices) {
+      const pool = TRAITS.filter((t) => (run.traits[t.id] || 0) < t.max && (!t.cls || run.unlocked.includes(t.cls)));
+      picks.push(...shuffle(pool.slice()).slice(0, m.blessChoices - picks.length).map((t) => t.id));
+    }
+    this.blessChoices = picks;
+  }
+
+  private cardHtml(id: string): string {
+    const run = G.run!;
+    if (id.startsWith('hr:') || id.startsWith('hp:')) {
+      const h = HEROES[id.slice(3)];
+      const st = run.heroes[h.id] || 0;
+      const recruit = id.startsWith('hr:');
+      const next = recruit ? 1 : st + 1;
+      const unlock = h.abilities.find((ab) => ab.star === next);
+      const stars = '★'.repeat(next) + '<i>' + '★'.repeat(MAX_STARS - next) + '</i>';
+      return `<div class="bcard hero ${recruit ? 'new' : ''}" data-act="bless:${id}" style="--hc:#${h.aura.toString(16).padStart(6, '0')}">
+        <div class="hc-tag">${recruit ? 'Novo herói' : 'Promoção'}</div>
+        <img class="hc-art" src="${spriteIcon('hero_' + h.id)}">
+        <div class="bn2">${h.name}</div><div class="hc-title">${h.title}</div>
+        <div class="hc-stars">${stars}</div>
+        <div class="bd">${recruit ? h.desc : `Atributos ×1,45`}${unlock ? `<br><b>Desbloqueia:</b> ${unlock.name}` : ''}</div>
+      </div>`;
+    }
+    const t = TRAITS.find((q) => q.id === id)!;
+    const lv = run.traits[id] || 0;
+    const ico = t.icon.startsWith('cls_') ? `<img class="ico big" src="${spriteIcon(t.icon)}">` : iconImg(t.icon, 'ico big');
+    return `<div class="bcard" data-act="bless:${id}">${ico}<div class="bn2">${t.name}</div><div class="bl">${lv ? `Nível ${lv} → ${lv + 1}` : 'Bênção'}</div><div class="bd">${t.desc}</div></div>`;
   }
 
   private blessingView(): string {
     const run = G.run!;
     if (!this.blessChoices.length) this.rollBlessings();
-    return `<div class="muted pad">Seu exército alcançou o <b>nível ${run.armyLevel}</b> de evolução. Escolha uma bênção (${run.pendingBless} pendente${run.pendingBless > 1 ? 's' : ''}).</div>
-    <div class="bless">${this.blessChoices.map((id) => {
-      const t = TRAITS.find((q) => q.id === id)!;
-      const lv = run.traits[id] || 0;
-      const ico = t.icon.startsWith('cls_') ? `<img class="ico big" src="${spriteIcon(t.icon)}">` : iconImg(t.icon, 'ico big');
-      return `<div class="bcard" data-act="bless:${id}">${ico}<div class="bn2">${t.name}</div><div class="bl">${lv ? `Nível ${lv} → ${lv + 1}` : 'Nova'}</div><div class="bd">${t.desc}</div></div>`;
-    }).join('')}</div>
+    const owned = HERO_ORDER.filter((h) => (run.heroes[h] || 0) > 0).length;
+    return `<div class="muted pad">O exército chegou ao <b>nível ${run.armyLevel}</b>. Escolha uma carta (${run.pendingBless} pendente${run.pendingBless > 1 ? 's' : ''}) • Heróis: ${owned}/${getMods().heroSlots}</div>
+    <div class="bless">${this.blessChoices.map((id) => this.cardHtml(id)).join('')}</div>
     <div class="center"><button class="btn sm" data-act="bless:later">Decidir depois</button></div>`;
   }
 
@@ -532,6 +693,26 @@ class UIManager {
         <div>Ouro obtido</div><b>${fmt(run.stats.gold)}</b><div>Tropas perdidas</div><b>${fmt(run.stats.lost)}</b><div>Recrutadas</div><b>${fmt(run.stats.recruited)}</b>
         <div>Essência ao terminar</div><b>${fmt(essenceForRun(run.wave, run.stats.kills, run.stats.bossKills) + run.essenceEarned)}</b><div>Tempo</div><b>${fmtTime(run.stats.time)}</b>
       </div></div>
+    </div>`;
+  }
+
+  private heroView(id: string): string {
+    const run = G.run!;
+    const h = HEROES[id];
+    const st = run.heroes[id] || 0;
+    const rt = this.scene!.heroes.list.find((r) => r.id === id);
+    const stats = rt ? this.scene!.heroes.stats(rt) : null;
+    const col = '#' + h.aura.toString(16).padStart(6, '0');
+    return `<div class="herov" style="--hc:${col}">
+      <div class="hv-art"><img src="${spriteIcon('hero_' + id)}"><div class="hc-stars">${'★'.repeat(st)}<i>${'★'.repeat(MAX_STARS - st)}</i></div></div>
+      <div class="hv-info">
+        <div class="hv-name">${h.name} <small>${h.title}</small></div>
+        <div class="hv-role">${h.role}</div>
+        <div class="hv-desc">${h.desc}</div>
+        ${stats ? `<div class="kv"><div>Vida</div><b>${fmt(stats.hp)}</b><div>Dano</div><b>${fmt(stats.dmg)}</b><div>Armadura</div><b>${Math.round(stats.armor)}</b><div>Renasce em</div><b>${Math.round(getMods().heroRespawn)}s</b></div>` : ''}
+        <div class="hv-abs">${h.abilities.map((ab) => `<div class="hv-ab ${ab.star <= st ? 'on' : ''}"><b>${ab.name}</b> <span>${'★'.repeat(ab.star)}</span><div>${ab.desc}</div></div>`).join('')}</div>
+        <div class="muted">Promova heróis escolhendo suas cartas quando o exército sobe de nível.</div>
+      </div>
     </div>`;
   }
 
@@ -625,7 +806,7 @@ class UIManager {
   openPause() { if (!this.modal && G.run && !G.run.demo) this.openModal('pause'); }
   togglePause() { if (this.modal === 'pause') this.closeModal(); else if (!this.modal) this.openPause(); else if (this.modal && !['result', 'blessing', 'tutorial', 'confirm'].includes(this.modal)) this.closeModal(); }
   openBlessing() { if (G.run && G.run.pendingBless > 0 && !this.modal) { this.blessChoices = []; this.openModal('blessing'); } }
-  flagBlessing() { this.toast('O exército evoluiu! Escolha uma bênção.'); }
+  flagBlessing() { this.toast('O exército evoluiu! Escolha uma carta de herói.'); }
   autoPickBlessing() {
     const run = G.run!;
     while (run.pendingBless > 0) {
@@ -639,6 +820,14 @@ class UIManager {
 
   private applyBlessing(id: string, auto = false) {
     const run = G.run!;
+    if (id.startsWith('hr:') || id.startsWith('hp:')) {
+      const hid = id.slice(3);
+      run.heroes[hid] = Math.min(MAX_STARS, (run.heroes[hid] || 0) + 1);
+      run.pendingBless = Math.max(0, run.pendingBless - 1);
+      this.scene?.heroes.sync();
+      if (!run.demo) this.toast(id.startsWith('hr:') ? `${HEROES[hid].name} se juntou ao exército!` : `${HEROES[hid].name} agora tem ${run.heroes[hid]}★`);
+      return;
+    }
     run.traits[id] = (run.traits[id] || 0) + 1;
     run.pendingBless = Math.max(0, run.pendingBless - 1);
     invalidateMods();
@@ -653,6 +842,7 @@ class UIManager {
     if (!w) return;
     invalidateMods();
     for (const a of w.allies) if (a.alive && a.kind === 'ally') applyStats(w, a);
+    this.scene?.heroes.sync();
   }
 
   showResult(reason: 'defeat' | 'retreat') {
@@ -752,6 +942,9 @@ class UIManager {
         break;
       case 'codex': this.codexTab = a1 as any; if (this.screen === 'camp') this.showCamp('codex'); else this.renderModal(); break;
       case 'meta': this.buyMeta(a1); break;
+      case 'hero': this.openModal('hero', a1); break;
+      case 'statsToggle': this.statsCollapsed = !this.statsCollapsed; this.els['h-stats'].classList.toggle('collapsed', this.statsCollapsed); break;
+      case 'tz': if (a1 === 'home') { this.treeCam.init = false; this.bindTree(); } else this.zoomTree(a1 === 'in' ? 1.2 : 1 / 1.2); break;
       case 'ascend': {
         const gain = ascensionShardsAvailable();
         if (gain > 0) {
@@ -831,6 +1024,7 @@ class UIManager {
     invalidateMods();
     save();
     audio.play('buy');
+    this.treeSel = id;
     this.showCamp('tree');
   }
 }

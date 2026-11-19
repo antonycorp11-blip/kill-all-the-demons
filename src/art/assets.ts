@@ -4,6 +4,8 @@ import { PixelCanvas, sheet } from './pixel';
 import { drawHumanFrame, drawSpiritFrame, HUMAN_FRAMES } from './humans';
 import { drawDemonFrame } from './demons';
 import { drawBossFrame, BOSS_FRAMES } from './bosses';
+import { drawHeroFrame, HERO_FRAMES } from './heroes';
+import { HERO_ORDER } from '../data/heroes';
 import { generateTerrain, generateFortress, generatePortal } from './terrain';
 import { fxTextures, setSpriteIconProvider } from './fx';
 import { CLASS_ORDER, type ClassId } from '../data/units';
@@ -38,6 +40,11 @@ export function registerCoreArt(scene: Phaser.Scene) {
     const frames: PixelCanvas[] = [];
     for (let f = 0; f < BOSS_FRAMES; f++) frames.push(drawBossFrame(id, f));
     addSheet(scene, `b_${id}`, frames);
+  }
+  for (const id of HERO_ORDER) {
+    const frames: PixelCanvas[] = [];
+    for (let f = 0; f < HERO_FRAMES; f++) frames.push(drawHeroFrame(id, f));
+    addSheet(scene, `h_${id}`, frames);
   }
   for (let s = 0; s < 4; s++) if (!scene.textures.exists(`fort_${s}`)) scene.textures.addCanvas(`fort_${s}`, generateFortress(s));
   setSpriteIconProvider(spriteIcon);
@@ -79,6 +86,8 @@ export function spriteIcon(name: string): string {
   } else if (name.startsWith('enemy_')) {
     const id = name.slice(6) as EnemyId;
     url = trimCanvas(drawDemonFrame(id, REGIONS[0].palette, 0)).toCanvas(3).toDataURL();
+  } else if (name.startsWith('hero_')) {
+    url = trimCanvas(drawHeroFrame(name.slice(5), 0)).toCanvas(2).toDataURL();
   } else if (name.startsWith('boss_')) {
     url = trimCanvas(drawBossFrame(name.slice(5), 0)).toCanvas(2).toDataURL();
   }

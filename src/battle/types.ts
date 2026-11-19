@@ -1,6 +1,6 @@
 import type Phaser from 'phaser';
 
-export type Kind = 'ally' | 'summon' | 'enemy' | 'boss';
+export type Kind = 'ally' | 'summon' | 'enemy' | 'boss' | 'hero';
 
 export interface Ent {
   id: number;

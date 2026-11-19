@@ -62,6 +62,7 @@ export interface RunState {
   essenceEarned: number;
   army: UnitSave[];
   modifier: string | null;
+  heroes: Record<string, number>; // hero id -> stars (owned)
   demo?: boolean;
 }
 
@@ -104,8 +105,14 @@ export function newRun(startRegion: number): RunState {
     weights: { front: 40, ranged: 35, support: 15, special: 10 }, classEnabled, stance: 'bal', autoRecruit: true, autoBless: false, autoSkills: true,
     armyLevel: 1, armyXp: 0, pendingBless: 0, traits: {}, skillLv: [0, 0, 0, 0], legacy: {},
     stats: { kills: 0, gold: 0, bossKills: 0, dmg: 0, lost: 0, recruited: 0, time: 0, regionsCleared: 0 },
-    essenceEarned: 0, army: [], modifier: null,
+    essenceEarned: 0, army: [], modifier: null, heroes: startHeroes(),
   };
+}
+
+function startHeroes(): Record<string, number> {
+  if (treeLv('h_start') <= 0) return {};
+  const ids = ['arthon', 'lyra', 'elandra', 'brannoc', 'seraphiel', 'kael'];
+  return { [ids[Math.floor(Math.random() * ids.length)]]: 1 + treeLv('h_stars') };
 }
 
 export function upLv(id: string): number {
@@ -162,6 +169,7 @@ function sanitizeRun(r: RunState): RunState {
   for (const u of UPGRADES) if (out.upgrades[u.id] == null) out.upgrades[u.id] = 0;
   for (const k of Object.keys(out.traits)) if (!TRAITS.find((t) => t.id === k)) delete out.traits[k];
   out.army = (out.army || []).filter((u) => u && u.cls in CLASSES);
+  out.heroes = out.heroes || {};
   return out;
 }
 

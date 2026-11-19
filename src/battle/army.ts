@@ -162,11 +162,12 @@ export function computeFormation(w: World) {
       e.homeY = y + (((e.id * 53) % 9) - 4);
     });
   };
-  place(groups.front, lineX, 1, 16, 20);
-  const frontDepth = Math.ceil(groups.front.length / 16) * 20;
-  place(groups.ranged, lineX - frontDepth - 60, 1, 14, 22);
-  const rangedDepth = Math.ceil(groups.ranged.length / 14) * 22;
-  place(groups.support, lineX - frontDepth - rangedDepth - 70, 1, 10, 20);
+  const perF = Math.max(8, Math.floor(H / 22)), perR = Math.max(7, Math.floor(H / 24)), perS = Math.max(5, Math.floor(H / 32));
+  place(groups.front, lineX, 1, perF, 20);
+  const frontDepth = Math.ceil(groups.front.length / perF) * 20;
+  place(groups.ranged, lineX - frontDepth - 60, 1, perR, 22);
+  const rangedDepth = Math.ceil(groups.ranged.length / perR) * 22;
+  place(groups.support, lineX - frontDepth - rangedDepth - 70, 1, perS, 20);
   // specials: knights on the flanks ahead, summoners with ranged
   const knights = groups.special.filter((e) => e.cls === 'knight');
   const others = groups.special.filter((e) => e.cls !== 'knight');

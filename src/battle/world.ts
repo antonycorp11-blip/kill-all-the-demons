@@ -22,6 +22,7 @@ export interface WorldHooks {
 }
 
 const SPR_SCALE = 2;
+const ALLY_SCALE = 1.8;
 
 export class World {
   scene: Phaser.Scene;
@@ -39,7 +40,7 @@ export class World {
   dying: Ent[] = [];
   nextId = 1;
   W = 1280;
-  H = 720;
+  H = 1000;
   fieldTop = 178;
   fieldBot = 612;
   fortX = 106;
@@ -60,6 +61,7 @@ export class World {
   onPromoteCb: (e: Ent) => void = () => {};
   onKillCb: (e: Ent) => void = () => {};
   onAllyDeathCb: (e: Ent) => void = () => {};
+  onHeroDeathCb: (e: Ent) => void = () => {};
   /** set by the boss controller: domes active during telegraphs */
   domes: { x: number; y: number; r: number }[] = [];
 
@@ -76,8 +78,8 @@ export class World {
     this.markFormation();
   }
 
-  entCap() { const q = G.settings.quality; return q === 'high' ? 170 : q === 'med' ? 120 : 80; }
-  enemyCap() { const q = G.settings.quality; return q === 'high' ? 170 : q === 'med' ? 120 : 80; }
+  entCap() { const q = G.settings.quality; return q === 'high' ? 230 : q === 'med' ? 150 : 90; }
+  enemyCap() { const q = G.settings.quality; return q === 'high' ? 200 : q === 'med' ? 130 : 85; }
   allyEntCount() { let n = 0; for (const a of this.allies) if (a.alive && a.kind === 'ally') n++; return n; }
   armyCount() { let n = 0; for (const a of this.allies) if (a.alive && a.kind === 'ally') n += a.stack; return n; }
   summonCount() { let n = 0; for (const a of this.allies) if (a.alive && a.kind === 'summon') n++; return n; }
@@ -123,7 +125,7 @@ export class World {
     e.level = level; e.vet = vet; e.stack = 1;
     e.x = x; e.y = y; e.homeX = x + 80; e.homeY = y; e.r = d.radius; e.facing = 1;
     e.atkT = rand(0, 0.5); e.abilT = rand(1, 3);
-    this.attachSprite(e, `u_${cls}_0`, SPR_SCALE, cls === 'knight' ? 0.94 : 0.92);
+    this.attachSprite(e, `u_${cls}_0`, ALLY_SCALE, 0.91);
     e.maxHp = 0;
     applyStats(this, e, false);
     e.hp = e.maxHp;
@@ -142,7 +144,7 @@ export class World {
     e.range = kind === 'spiritArcher' ? 200 : kind === 'golem' ? 26 : 20; e.atkCd = kind === 'golem' ? 1.4 : 0.9; e.speed = 70;
     e.life = life; e.owner = owner; e.tier = 1;
     e.homeX = x + 60; e.homeY = y;
-    this.attachSprite(e, `s_${kind}`, SPR_SCALE, kind === 'golem' ? 0.95 : 0.92);
+    this.attachSprite(e, `s_${kind}`, kind === 'golem' ? SPR_SCALE : ALLY_SCALE, kind === 'golem' ? 0.95 : 0.91);
     this.allies.push(e);
     this.fx.burst(x, y, kind === 'spectral' ? 0xc08aff : 0x5affd0, 10, 60, { tex: 'spark', add: true });
     this.fx.glow(x, y - 10, kind === 'spectral' ? 0xb05aff : 0x5affd0, 0.8, 0.5);
@@ -157,7 +159,7 @@ export class World {
     e.alive = true; e.team = 1; e.kind = 'enemy'; e.cls = id; e.behavior = d.behavior; e.role = 'enemy';
     e.x = x; e.y = y; e.r = d.radius; e.facing = -1;
     let hp = d.hp * 0.8 * enemyHpScale(w) * (o.hpMul || 1);
-    let dmg = d.dmg * 1.8 * enemyDmgScale(w) * (o.dmgMul || 1);
+    let dmg = d.dmg * 2.5 * enemyDmgScale(w) * (o.dmgMul || 1);
     if (mod === 'armored') hp *= 1.6;
     if (mod === 'fury') dmg *= 1.4;
     e.maxHp = e.hp = hp; e.dmg = dmg;
@@ -197,6 +199,19 @@ export class World {
     return e;
   }
 
+  spawnHeroEnt(id: string, key: string, scale: number, x: number, y: number, hp: number, dmg: number, armor: number, speed: number, range: number, atkCd: number, radius: number, aura: number): Ent {
+    const e = this.acquire();
+    e.alive = true; e.team = 0; e.kind = 'hero'; e.cls = id; e.behavior = 'hero'; e.role = 'hero';
+    e.x = x; e.y = y; e.r = radius; e.facing = 1;
+    e.maxHp = e.hp = hp; e.dmg = dmg; e.armor = armor; e.speed = speed; e.range = range; e.atkCd = atkCd;
+    e.large = true;
+    this.attachSprite(e, key, scale, 0.95);
+    e.aura = this.auraImg('glow');
+    e.aura.setTint(aura).setBlendMode(Phaser.BlendModes.ADD).setAlpha(0.5);
+    this.allies.push(e);
+    return e;
+  }
+
   removeAlly(e: Ent) {
     e.alive = false;
     this.releaseSprite(e);
@@ -220,7 +235,7 @@ export class World {
     if (this.auraT <= 0) { this.auraT = 0.5; this.computeAuras(); }
 
     const m = getMods();
-    for (const a of this.allies) this.updateAlly(a, dt, m.regen);
+    for (const a of this.allies) if (a.kind !== 'hero') this.updateAlly(a, dt, m.regen);
     for (const e of this.enemies) if (e.kind === 'enemy') this.updateEnemy(e, dt);
     this.separate(dt);
     this.proj.update(dt);
@@ -840,7 +855,9 @@ export class World {
       if (!run.demo) G.meta.totalKills++;
       // xp to killer and nearby allies
       if (src && src.alive && src.kind === 'ally') giveXp(this, src, e.xpVal);
-      this.allyGrid.query(e.x, e.y, 170, (a) => { if (a !== src && a.kind === 'ally') giveXp(this, a, e.xpVal * 0.4); });
+      // heroes, skills and splash kills share their experience with the troops around the victim
+      const allyKill = !!(src && src.kind === 'ally');
+      this.allyGrid.query(e.x, e.y, allyKill ? 170 : 240, (a) => { if (a !== src && a.kind === 'ally') giveXp(this, a, e.xpVal * (allyKill ? 0.4 : 0.7)); });
       run.armyXp += e.xpVal * m.xp * 0.6;
       while (run.armyXp >= armyXpNeeded(run.armyLevel)) {
         run.armyXp -= armyXpNeeded(run.armyLevel);
@@ -877,6 +894,11 @@ export class World {
         }
         this.markFormation();
         this.onAllyDeathCb(e);
+      } else if (e.kind === 'hero') {
+        this.fx.burst(e.x, e.y - 30, 0xffffff, 20, 120, { tex: 'spark', add: true, life: 0.8 });
+        this.fx.particle({ tex: 'soul', x: e.x, y: e.y - 30, vz: 30, g: -10, life: 2, s0: 3, s1: 1.5, add: true });
+        audio.play('death', 1);
+        this.onHeroDeathCb(e);
       } else {
         if (e.owner) e.owner.summons = Math.max(0, e.owner.summons - 1);
         this.fx.burst(e.x, e.y - 10, 0x8affe0, 6, 50, { tex: 'spark', add: true });
@@ -969,7 +991,7 @@ export class World {
     s.setDepth(10 + e.y);
     s.setScale(e.scale * persp * (e.stack > 1 ? 1.1 : 1));
     let frame = 0;
-    if (e.kind === 'boss') {
+    if (e.kind === 'boss' || e.kind === 'hero') {
       frame = e.atkAnim > 0 ? (e.atkAnim > 0.2 ? 2 : 3) : (Math.floor(this.time * 2.2) % 2);
       if (e.behavior === 'casting') frame = 2;
     } else if (e.atkAnim > 0) frame = e.atkAnim > 0.13 ? 4 : 5;
@@ -986,13 +1008,14 @@ export class World {
     else if (e.kind === 'summon') s.setTint(0xffffff).setAlpha(0.85);
     else s.clearTint();
     if (e.shd) {
-      const w = e.kind === 'boss' ? 4.2 : e.miniboss ? 2.6 : e.large ? 1.5 : e.cls === 'knight' || e.cls === 'hound' ? 1.2 : 0.8;
+      const w = e.kind === 'boss' ? 4.2 : e.kind === 'hero' ? 2.2 : e.miniboss ? 2.6 : e.large ? 1.5 : e.cls === 'knight' || e.cls === 'hound' ? 1.2 : 0.8;
       e.shd.setPosition(e.x, e.y + 1).setScale(w * persp, w * persp).setAlpha(e.flying ? 0.5 : 0.9);
     }
     if (e.aura) {
-      e.aura.setPosition(e.x, e.y - (e.kind === 'boss' ? 60 : e.miniboss ? 30 : 6)).setDepth(9 + e.y);
+      e.aura.setPosition(e.x, e.y - (e.kind === 'boss' ? 60 : e.kind === 'hero' ? 34 : e.miniboss ? 30 : 6)).setDepth(9 + e.y);
       const pulse = 1 + Math.sin(this.time * 3 + e.id) * 0.08;
       if (e.kind === 'boss') e.aura.setScale(4.2 * pulse);
+      else if (e.kind === 'hero') e.aura.setScale(2.4 * pulse);
       else if (e.miniboss) e.aura.setScale(2.4 * pulse);
       else e.aura.setScale(0.9 * pulse, 0.45 * pulse);
     }

@@ -3,10 +3,10 @@ import { PixelCanvas, shade } from './pixel';
 import type { ClassId } from '../data/units';
 
 export const HUMAN_FRAMES = 6;
-export const HUMAN_W = 28;
-export const HUMAN_H = 28;
+export const HUMAN_W = 32;
+export const HUMAN_H = 32;
 export const KNIGHT_W = 38;
-export const KNIGHT_H = 32;
+export const KNIGHT_H = 34;
 
 type Helm = 'none' | 'cap' | 'helm' | 'plume' | 'crest' | 'hood' | 'hat' | 'halo' | 'crown';
 type Weapon = 'fork' | 'sword' | 'dual' | 'mace' | 'spear' | 'bow' | 'staff' | 'holy' | 'orb' | 'lance' | 'greatsword';
@@ -225,80 +225,135 @@ function drawWeapon(p: PixelCanvas, L: Look, pose: Pose, hx: number, hy: number,
   }
 }
 
-function drawHelm(p: PixelCanvas, L: Look, oy: number) {
-  const c = L.helmColor;
-  const hx = 10, hy = 6 + oy; // head box 7x7 at (10..16, 6..12)
+// ---------------- chibi foot-soldier renderer (32x32, big heads like the reference) ----------------
+function pose32(frame: number): Pose {
+  switch (frame) {
+    case 1: return { bob: 1, legA: 0, legB: 0, hand: [21, 23], ang: -1.15, phase: 'idle' };
+    case 2: return { bob: 0, legA: -1, legB: 1, hand: [21, 22], ang: -1.0, phase: 'idle' };
+    case 3: return { bob: 1, legA: 1, legB: -1, hand: [21, 23], ang: -1.2, phase: 'idle' };
+    case 4: return { bob: 0, legA: -1, legB: 0, hand: [18, 17], ang: -2.5, phase: 'wind' };
+    case 5: return { bob: 0, legA: 1, legB: -1, hand: [24, 21], ang: 0.15, phase: 'strike' };
+    default: return { bob: 0, legA: 0, legB: 0, hand: [21, 22], ang: -1.1, phase: 'idle' };
+  }
+}
+
+function drawFace(p: PixelCanvas, L: Look, oy: number) {
+  // head: big rounded skin blob
+  p.ellipse(15, 12 + oy, 5.4, 4.9, L.skin);
+  p.rect(12, 16 + oy, 7, 1, shade(L.skin, -0.18));
+  // eyes (2px tall with highlight) + blush + mouth, facing right
+  p.rect(16, 11 + oy, 1, 2, '#1a1020');
+  p.rect(19, 11 + oy, 1, 2, '#1a1020');
+  p.px(16, 11 + oy, '#ffffff', 0.85);
+  p.px(19, 11 + oy, '#ffffff', 0.85);
+  p.px(15, 14 + oy, '#ff9a8a', 0.7);
+  p.px(20, 14 + oy, '#ff9a8a', 0.5);
+  p.px(18, 15 + oy, shade(L.skin, -0.35));
+}
+
+function openFace(p: PixelCanvas, L: Look, oy: number, x0 = 14) {
+  p.rect(x0, 11 + oy, 21 - x0, 5, L.skin);
+  p.rect(x0 + 1, 16 + oy, 19 - x0, 1, shade(L.skin, -0.18));
+  p.rect(16, 12 + oy, 1, 2, '#1a1020');
+  p.rect(19, 12 + oy, 1, 2, '#1a1020');
+  p.px(16, 12 + oy, '#ffffff', 0.85);
+  p.px(19, 12 + oy, '#ffffff', 0.85);
+  p.px(20, 14 + oy, '#ff9a8a', 0.6);
+  p.px(18, 15 + oy, shade(L.skin, -0.35));
+}
+
+function drawHelm32(p: PixelCanvas, L: Look, oy: number) {
+  const c = L.helmColor, cd = shade(c, -0.28), cl = shade(c, 0.35);
+  const y = oy;
   switch (L.helm) {
     case 'none':
-      p.rect(hx, hy - 1, 7, 3, L.hair);
-      p.rect(hx, hy + 2, 2, 2, L.hair);
+      p.ellipse(14, 9 + y, 5.6, 3.2, L.hair);
+      p.rect(9, 9 + y, 3, 5, L.hair);
+      p.px(17, 7 + y, shade(L.hair, 0.3));
       break;
     case 'cap':
-      p.rect(hx - 1, hy - 1, 8, 3, c);
-      p.rect(hx + 5, hy + 1, 3, 1, shade(c, -0.25));
-      p.rect(hx, hy + 2, 2, 2, L.hair);
+      p.ellipse(15, 8.5 + y, 5.8, 3, c);
+      p.rect(9, 9 + y, 3, 4, L.hair);
+      p.rect(17, 10 + y, 5, 1, cd);
+      p.px(13, 7 + y, cl);
       break;
     case 'helm':
     case 'plume':
-    case 'crest':
-      p.rect(hx - 1, hy - 1, 8, 4, c);
-      p.rect(hx - 1, hy + 3, 3, 4, c); // back/neck guard
-      p.rect(hx + 2, hy + 3, 1, 1, shade(c, -0.3));
-      p.rect(hx - 1, hy + 2, 8, 1, shade(c, -0.2));
-      p.px(hx + 3, hy - 1, shade(c, 0.4));
+    case 'crest': {
+      // dome
+      p.ellipse(15, 9.5 + y, 6.2, 4.4, c);
+      // back + cheek guard (face window stays open on the right)
+      p.rect(9, 9 + y, 5, 7, c);
+      p.rect(9, 15 + y, 5, 1, cd);
+      p.rect(10, 13 + y, 4, 1, cd);
+      // rim / visor line
+      p.rect(14, 10 + y, 8, 1, cd);
+      p.rect(14, 9 + y, 7, 1, cl);
+      p.px(12, 6 + y, cl); p.px(13, 6 + y, cl); p.px(11, 7 + y, cl);
+      openFace(p, L, y, 15);
+      p.rect(15, 11 + y, 1, 4, cd);
       if (L.helm === 'plume' && L.plume) {
-        p.rect(hx + 1, hy - 3, 4, 2, L.plume);
-        p.rect(hx - 1, hy - 2, 2, 2, L.plume);
+        p.ellipse(13, 4 + y, 3.4, 1.8, L.plume);
+        p.rect(9, 4 + y, 3, 3, L.plume);
+        p.px(14, 3 + y, shade(L.plume, 0.35));
       }
       if (L.helm === 'crest') {
-        p.rect(hx + 2, hy - 3, 3, 2, c);
-        if (L.plume) { p.rect(hx - 1, hy - 4, 5, 2, L.plume); p.rect(hx - 3, hy - 3, 2, 3, L.plume); }
-        p.px(hx + 6, hy + 1, '#ffffff');
+        p.rect(14, 3 + y, 2, 3, c);
+        p.px(14, 3 + y, cl);
+        if (L.plume) { p.ellipse(11, 3 + y, 4, 1.8, L.plume); p.rect(7, 3 + y, 3, 4, L.plume); p.px(12, 2 + y, shade(L.plume, 0.35)); }
+        p.px(20, 9 + y, '#ffffff');
       }
       break;
+    }
     case 'hood':
-      p.rect(hx - 1, hy - 1, 8, 4, c);
-      p.rect(hx - 1, hy + 3, 3, 5, c);
-      p.rect(hx + 5, hy, 2, 1, shade(c, 0.2));
-      p.px(hx + 7, hy + 1, c);
+      p.ellipse(14.5, 10 + y, 6.4, 5.2, c);
+      p.rect(8, 10 + y, 5, 8, c);
+      p.rect(8, 17 + y, 6, 1, cd);
+      p.rect(13, 9 + y, 8, 1, cd);
+      p.px(12, 6 + y, cl); p.px(13, 6 + y, cl);
+      openFace(p, L, y, 15);
       break;
     case 'hat':
-      p.rect(hx - 2, hy + 1, 11, 1, shade(c, -0.15));
-      p.poly([[hx, hy + 1], [hx + 7, hy + 1], [hx + 3, hy - 6], [hx + 1, hy - 7]], c);
-      p.px(hx + 1, hy - 7, c);
-      p.rect(hx, hy, 7, 1, GOLD);
-      p.rect(hx, hy + 2, 2, 3, L.hair);
-      p.rect(hx + 2, hy + 6, 4, 2, L.hair); // beard
+      p.ellipse(15, 9 + y, 8, 1.6, cd);
+      p.poly([[9, 9 + y], [21, 9 + y], [15, 0 + y], [11, -1 + y]], c);
+      p.px(10, -1 + y, c); p.px(9, 0 + y, c);
+      p.rect(10, 7 + y, 10, 1, GOLD);
+      p.px(14, 3 + y, cl); p.px(15, 5 + y, '#ffffff', 0.5);
+      p.rect(9, 9 + y, 3, 5, L.hair);
+      // beard
+      p.poly([[15, 15 + y], [20, 15 + y], [18, 20 + y]], L.hair);
       break;
     case 'halo':
-      p.rect(hx, hy - 1, 7, 3, L.hair);
-      p.ring(hx + 3, hy - 3, 4, 1.4, GOLD, 1);
+      p.ellipse(14, 9 + y, 5.6, 3, L.hair);
+      p.rect(9, 9 + y, 3, 6, L.hair);
+      p.ring(15, 3 + y, 4.5, 1.5, GOLD, 1);
       break;
     case 'crown':
-      p.rect(hx - 1, hy - 1, 8, 4, '#0a3a4a');
-      p.rect(hx - 1, hy + 3, 3, 5, '#0a3a4a');
-      p.rect(hx, hy - 2, 7, 1, GOLD);
-      p.px(hx, hy - 3, GOLD); p.px(hx + 3, hy - 3, GOLD); p.px(hx + 6, hy - 3, GOLD);
+      p.ellipse(14.5, 10 + y, 6.4, 5.2, '#0a3a4a');
+      p.rect(8, 10 + y, 5, 8, '#0a3a4a');
+      openFace(p, L, y, 15);
+      p.rect(10, 5 + y, 10, 2, GOLD);
+      p.px(10, 4 + y, GOLD); p.px(15, 3 + y, GOLD); p.px(19, 4 + y, GOLD); p.px(15, 4 + y, '#ff5a8a');
       break;
   }
 }
 
-function drawShield(p: PixelCanvas, L: Look, oy: number, pose: Pose) {
+function drawShield32(p: PixelCanvas, L: Look, oy: number, pose: Pose) {
   if (!L.shield) return;
   const s = L.shield;
   const push = pose.phase === 'strike' ? 1 : 0;
   if (s.big) {
-    const x = 6 + push, y = 12 + oy;
-    p.rect(x, y, 6, 10, s.t);
-    p.rect(x + 1, y + 1, 4, 8, s.c);
-    p.rect(x + 1, y + 9, 4, 1, s.t);
-    p.px(x + 2, y + 10, s.t); p.px(x + 3, y + 10, s.t);
-    if (s.emblem) { p.rect(x + 2, y + 3, 2, 4, s.emblem); p.rect(x + 1, y + 4, 4, 1, s.emblem); }
+    const x = 6 + push, y = 17 + oy;
+    p.poly([[x, y], [x + 7, y], [x + 7, y + 8], [x + 3.5, y + 11], [x, y + 8]], s.t);
+    p.poly([[x + 1, y + 1], [x + 6, y + 1], [x + 6, y + 8], [x + 3.5, y + 10], [x + 1, y + 8]], s.c);
+    p.rect(x + 1, y + 1, 5, 1, shade(s.c, 0.3));
+    if (s.emblem) { p.rect(x + 3, y + 2, 1, 6, s.emblem); p.rect(x + 2, y + 4, 3, 1, s.emblem); }
   } else {
-    const x = 7 + push, y = 14 + oy;
-    p.ellipse(x + 2, y + 2.5, 2.6, 3, s.t);
-    p.ellipse(x + 2, y + 2.5, 1.6, 2, s.c);
-    if (s.emblem) p.px(x + 2, y + 2, s.emblem);
+    const x = 9 + push, y = 22 + oy;
+    p.ellipse(x, y, 3, 3.4, s.t);
+    p.ellipse(x, y, 2, 2.4, s.c);
+    p.px(x - 1, y - 1, shade(s.c, 0.4));
+    if (s.emblem) p.px(x, y, s.emblem);
   }
 }
 
@@ -306,75 +361,67 @@ export function drawHumanFrame(cls: ClassId, tier: number, frame: number): Pixel
   if (cls === 'knight') return drawKnightFrame(tier, frame);
   const L = lookFor(cls, tier);
   const p = new PixelCanvas(HUMAN_W, HUMAN_H);
-  const pose = poseFor(frame);
+  const pose = pose32(frame);
   const oy = pose.bob;
   const bulk = L.bulky ? 1 : 0;
 
   // cape (behind)
   if (L.cape) {
     const sway = frame === 2 || frame === 4 ? -1 : 0;
-    p.poly([[9 - bulk, 13 + oy], [14, 13 + oy], [13, 24], [6 + sway - bulk, 24]], L.cape);
-    p.rect(7 + sway - bulk, 23, 6, 1, shade(L.cape, -0.3));
+    p.poly([[11 - bulk, 18 + oy], [17, 18 + oy], [16, 29], [8 + sway - bulk, 29]], L.cape);
+    p.poly([[11 - bulk, 18 + oy], [13, 18 + oy], [11, 29], [8 + sway - bulk, 29]], shade(L.cape, -0.25));
   }
-
   // back arm
-  p.rect(9 - bulk, 13 + oy, 2, 5, shade(L.body, -0.25));
-  p.px(9 - bulk, 18 + oy, shade(L.skin, -0.15));
-
+  p.rect(10 - bulk, 19 + oy, 2, 4, shade(L.body, -0.3));
+  p.px(10 - bulk, 23 + oy, shade(L.skin, -0.15));
   // legs
   if (!L.robe) {
-    p.rect(11 + pose.legA, 19, 2, 5, shade(L.legs, -0.15));
-    p.rect(11 + pose.legA, 24, 3, 1, L.boots);
-    p.rect(14 + pose.legB, 19, 2, 5, L.legs);
-    p.rect(14 + pose.legB, 24, 3, 1, L.boots);
+    p.rect(12 + pose.legA, 25, 2, 3, shade(L.legs, -0.2));
+    p.rect(11 + pose.legA, 28, 4, 1, L.boots);
+    p.rect(16 + pose.legB, 25, 2, 3, L.legs);
+    p.rect(16 + pose.legB, 28, 4, 1, L.boots);
   } else {
-    p.poly([[10 - bulk, 17 + oy], [17, 17 + oy], [18 + (pose.legB > 0 ? 1 : 0), 25], [9 + (pose.legA < 0 ? -1 : 0), 25]], L.body);
-    p.rect(9, 24, 10, 1, L.trim);
-    p.rect(11 + pose.legA, 25, 2, 1, L.boots);
-    p.rect(15 + pose.legB, 25, 2, 1, L.boots);
+    p.poly([[11 - bulk, 22 + oy], [19 + bulk, 22 + oy], [20 + (pose.legB > 0 ? 1 : 0), 29], [10 + (pose.legA < 0 ? -1 : 0), 29]], L.body);
+    p.rect(10, 28, 11, 1, L.trim);
+    p.rect(13, 22 + oy, 1, 7, shade(L.body, -0.15));
+    p.rect(12 + pose.legA, 29, 3, 1, L.boots);
+    p.rect(17 + pose.legB, 29, 3, 1, L.boots);
   }
-
-  // torso
-  p.rect(10 - bulk, 12 + oy, 7 + bulk * 2, 7, L.body);
-  p.rect(10 - bulk, 12 + oy, 7 + bulk * 2, 1, shade(L.body, 0.25));
+  // torso (rounded, chunky)
+  p.ellipse(15, 21.5 + oy, 4.6 + bulk, 4, L.body);
+  p.rect(11 - bulk, 21 + oy, 9 + bulk * 2, 4, L.body);
+  p.rect(12, 18 + oy, 6, 1, shade(L.body, 0.3));
   if (L.tabard) {
-    p.rect(12, 13 + oy, 3, 7, L.tabard);
-    p.px(13, 14 + oy, shade(L.tabard, 0.35));
+    p.rect(14, 19 + oy, 3, 6, L.tabard);
+    p.rect(14, 19 + oy, 1, 6, shade(L.tabard, 0.25));
+    p.px(15, 21 + oy, GOLD);
   }
-  p.rect(10 - bulk, 18 + oy, 7 + bulk * 2, 1, L.trim);
-  if (L.robe) p.rect(13, 12 + oy, 1, 7, L.trim);
-  // shoulder pads
-  if (!L.robe) { p.rect(9 - bulk, 12 + oy, 2, 2, shade(L.body, 0.15)); p.rect(16 + bulk, 12 + oy, 2, 2, shade(L.body, 0.15)); }
+  p.rect(11 - bulk, 24 + oy, 9 + bulk * 2, 1, L.trim);
+  p.px(15, 24 + oy, GOLD);
+  if (!L.robe) {
+    // pauldrons
+    p.ellipse(11 - bulk, 19 + oy, 1.8, 1.4, shade(L.body, 0.2));
+    p.ellipse(19 + bulk, 19 + oy, 1.8, 1.4, shade(L.body, 0.12));
+  } else p.rect(15, 18 + oy, 1, 6, L.trim);
 
-  // head
-  p.rect(10, 6 + oy, 7, 7, L.skin);
-  p.rect(10, 11 + oy, 7, 1, shade(L.skin, -0.12));
-  p.px(15, 9 + oy, '#1a1020');
-  p.px(13, 9 + oy, '#1a1020');
-  p.px(16, 10 + oy, shade(L.skin, -0.2));
-  drawHelm(p, L, oy);
+  drawFace(p, L, oy);
+  drawHelm32(p, L, oy);
+  drawShield32(p, L, oy, pose);
 
-  // shield behind front arm (left side)
-  drawShield(p, L, oy, pose);
-
-  // dual blade (back hand)
   if (L.weapon === 'dual') {
     const back: Pose = { ...pose, ang: pose.phase === 'strike' ? -0.5 : pose.phase === 'wind' ? 0.3 : -1.6 };
-    drawWeapon(p, L, back, 9 - bulk, 18 + oy, true);
+    drawWeapon(p, L, back, 10 - bulk, 23 + oy, true);
   }
-
-  // front arm + weapon
   const [hx, hy] = pose.hand;
-  p.line(17 + bulk, 13 + oy, hx, hy + oy, shade(L.body, -0.05));
-  p.line(16 + bulk, 13 + oy, hx - 1, hy + oy, L.body);
+  p.thickLine(19 + bulk, 19 + oy, hx, hy + oy, L.body, 2);
   drawWeapon(p, L, pose, hx, hy + oy);
-  p.px(hx, hy + oy, L.skin);
+  p.rect(hx - 1, hy + oy - 1, 2, 2, L.skin);
 
   p.outline('#140a18');
-  // glow sparkle for top tier (after outline so it stays bright)
   if (tier >= 3 && L.glow) {
-    p.px(5, 8 + oy, L.glow, 0.9);
-    p.px(21, 5 + oy, L.glow, 0.9);
+    p.px(5, 10 + oy, L.glow, 0.9);
+    p.px(26, 6 + oy, L.glow, 0.9);
+    p.px(27, 20 + oy, L.glow, 0.7);
   }
   return p;
 }
@@ -382,6 +429,7 @@ export function drawHumanFrame(cls: ClassId, tier: number, frame: number): Pixel
 function drawKnightFrame(tier: number, frame: number): PixelCanvas {
   const L = lookFor('knight', tier);
   const p = new PixelCanvas(KNIGHT_W, KNIGHT_H);
+  p.setOffset(0, 2);
   const pose = poseFor(frame);
   const horse = ['#8a5a3a', '#f0ece4', '#3a2a2a', '#f8f4ec'][tier];
   const mane = ['#4a2a1a', '#c8c0b0', '#1a1010', GOLD][tier];
@@ -424,12 +472,15 @@ function drawKnightFrame(tier: number, frame: number): PixelCanvas {
   p.rect(14, 12 + ry, 6, 7, L.body);
   if (L.tabard) p.rect(16, 13 + ry, 2, 6, L.tabard);
   p.rect(15, 18 + ry, 4, 4, L.legs);
-  // head
-  p.rect(14, 6 + ry, 6, 6, L.skin);
-  p.px(18, 8 + ry, '#1a1020');
-  p.rect(13, 5 + ry, 8, 4, L.helmColor);
-  p.rect(13, 9 + ry, 2, 3, L.helmColor);
-  if (L.plume) { p.rect(14, 3 + ry, 5, 2, L.plume); p.rect(12, 4 + ry, 2, 3, L.plume); }
+  // chibi head
+  p.ellipse(17, 7 + ry, 4.6, 4.2, L.skin);
+  p.ellipse(16.5, 5 + ry, 5, 3, L.helmColor);
+  p.rect(12, 5 + ry, 4, 6, L.helmColor);
+  p.rect(16, 6 + ry, 6, 1, shade(L.helmColor, -0.3));
+  p.rect(17, 7 + ry, 1, 2, '#1a1020'); p.rect(20, 7 + ry, 1, 2, '#1a1020');
+  p.px(17, 7 + ry, '#ffffff', 0.8); p.px(20, 7 + ry, '#ffffff', 0.8);
+  p.px(13, 3 + ry, shade(L.helmColor, 0.35));
+  if (L.plume) { p.ellipse(14, 1 + ry, 3.4, 1.6, L.plume); p.rect(11, 1 + ry, 3, 4, L.plume); }
   // shield
   if (L.shield) {
     p.ellipse(13, 17 + ry, 2.5, 3.2, L.shield.t);

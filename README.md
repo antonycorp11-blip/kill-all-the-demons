@@ -12,6 +12,12 @@ npm run build    # gera dist/ (estático, pode hospedar em qualquer lugar)
 npm run preview  # serve o build
 ```
 
+## Novidades
+- **Heróis** (Arthon, Lyra, Elandra, Brannoc, Seraphiel, Kael): unidades grandes, equivalentes aos chefes do lado humano, com 3 habilidades telegrafadas em dourado, 1–5★ e renascimento.
+- **Cartas de Herói**: ao subir o nível do exército, escolha convocar um herói ou promovê-lo (bênçãos só preenchem vagas sem opção de herói).
+- **Árvore Eterna** em formato de grafo: arraste, use zoom e toque nos nós.
+- **Campo adaptativo**: a câmera se afasta conforme o número de unidades cresce.
+
 ## Controles
 - O exército luta, recruta e evolui sozinho.
 - Barra inferior: Convocar Tropa (ou Espaço), Classes/Evoluir, Melhorias, Formação, Habilidades do Comandante e as 4 habilidades (teclas 1–4).

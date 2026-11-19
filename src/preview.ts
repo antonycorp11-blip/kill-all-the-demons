@@ -7,6 +7,8 @@ import { ENEMY_ORDER } from './data/enemies';
 import { REGIONS } from './data/regions';
 import { BOSS_ORDER } from './data/bosses';
 import { iconURL } from './art/fx';
+import { drawHeroFrame } from './art/heroes';
+import { HERO_ORDER } from './data/heroes';
 const out = document.getElementById('out')!;
 const row = () => { const d = document.createElement('div'); d.className = 'row'; out.appendChild(d); return d; };
 const mode = new URLSearchParams(location.search).get('m') || 'units';
@@ -20,6 +22,8 @@ if (mode === 'units') {
   const i = parseInt(mode.slice(7) || '0');
   const c = generateTerrain(REGIONS[i]); c.style.width = '1000px'; out.appendChild(c);
   const f = generateFortress(2); f.style.height = '360px'; out.appendChild(f);
+} else if (mode === 'heroes') {
+  for (const id of HERO_ORDER) { const r = row(); for (let f = 0; f < 4; f++) r.appendChild(drawHeroFrame(id, f).toCanvas(3)); }
 } else if (mode === 'icons') {
   const r = row(); for (const n of ['sword','heart','speed','shield','tent','horn','flag','crit','skull','boom','cross','heal','book','coin','castle','hammer','star','chest','bank','gem','bolt','wing','soul','banner','fire','people','wave','gear','evo','infinity','traits','sk_blade','sk_frost','sk_bless','sk_portal']) { const im = new Image(); im.src = iconURL(n); r.appendChild(im); }
 }

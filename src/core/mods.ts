@@ -5,7 +5,7 @@ export interface Mods {
   dmg: number; hp: number; armor: number; atkSpd: number; crit: number; critDmg: number; aoe: number; regen: number;
   xp: number; gold: number; fortMax: number; fortRegen: number; recruitInterval: number; recruitCost: number; cap: number;
   legacy: number; vetBonus: number; essence: number; skillPow: number; skillCd: number; bossDmg: number; largeDmg: number;
-  startLevels: number; frontDR: number; meleeSplash: number; fortBetween: number; interest: number; blessChoices: number;
+  startLevels: number; frontDR: number; meleeSplash: number; fortBetween: number; interest: number; blessChoices: number; heroPower: number; heroRespawn: number; heroSlots: number;
 }
 
 let cached: Mods | null = null;
@@ -20,17 +20,17 @@ export function getMods(): Mods {
     dmg: Math.pow(1.11, upLv('dmg')) * Math.pow(1.2, treeLv('m_dmg')) * (1 + 0.2 * traitLv('t_fury')) * sh,
     hp: Math.pow(1.1, upLv('hp')) * Math.pow(1.2, treeLv('m_hp')) * (1 + 0.2 * traitLv('t_iron')) * sh,
     armor: upLv('armor') * 6 + treeLv('m_armor') * 8,
-    atkSpd: 1 + upLv('atkspd') * 0.05 + traitLv('t_haste') * 0.1,
+    atkSpd: 1 + upLv('atkspd') * 0.05 + traitLv('t_haste') * 0.1 + treeLv('m_atkspd') * 0.05,
     crit: 0.05 + upLv('crit') * 0.02 + treeLv('m_crit') * 0.02 + traitLv('t_crit') * 0.06,
-    critDmg: 1.5 + upLv('critdmg') * 0.2 + traitLv('t_crit') * 0.3,
+    critDmg: 1.5 + upLv('critdmg') * 0.2 + traitLv('t_crit') * 0.3 + treeLv('m_critdmg') * 0.25,
     aoe: 1 + upLv('aoe') * 0.1 + treeLv('m_aoe') * 0.12,
-    regen: upLv('regen') * 0.002 + traitLv('t_regen') * 0.005,
+    regen: upLv('regen') * 0.002 + traitLv('t_regen') * 0.005 + treeLv('m_regen') * 0.003,
     xp: (1 + upLv('xp') * 0.12) * (1 + treeLv('m_xp') * 0.15),
     gold: (1 + upLv('gold') * 0.08) * Math.pow(1.15, treeLv('m_gold')) * (1 + 0.25 * traitLv('t_loot')) * sh,
     fortMax: 500 * Math.pow(1.12, upLv('fort')) * Math.pow(1.25, treeLv('m_fort')) * (1 + 0.25 * traitLv('t_wall')),
     fortRegen: upLv('fregen') * 0.002,
     recruitInterval: 4.2 * Math.pow(0.92, upLv('recruit')) * (1 - treeLv('m_recruit') * 0.06) * Math.pow(0.85, traitLv('t_horde')),
-    recruitCost: Math.pow(0.95, upLv('rcost')),
+    recruitCost: Math.pow(0.95, upLv('rcost')) * Math.pow(0.95, treeLv('m_rcost')),
     cap: 6 + upLv('cap') * 3 + treeLv('m_cap') * 3 + traitLv('t_horde') * 5,
     legacy: (0.06 + treeLv('m_legacy') * 0.04) * (traitLv('t_legacy') ? 2 : 1),
     vetBonus: 0.03 + treeLv('m_vet') * 0.01,
@@ -45,6 +45,9 @@ export function getMods(): Mods {
     fortBetween: 0.1 + treeLv('m_fregen') * 0.04,
     interest: treeLv('m_interest') * 0.01,
     blessChoices: 3 + treeLv('m_bless'),
+    heroPower: (1 + treeLv('h_power') * 0.25) * sh,
+    heroRespawn: 25 * Math.max(0.3, 1 - treeLv('h_respawn') * 0.1),
+    heroSlots: Math.min(6, 2 + treeLv('h_slots')),
   };
   m.recruitInterval = Math.max(0.35, m.recruitInterval);
   cached = m;

@@ -52,7 +52,7 @@ export class BossCtl {
     const w = this.w;
     const wave = w.wave;
     const inf = G.run?.modifier ? 1.25 : 1;
-    const hp = 32 * def.hp * enemyHpScale(wave) * inf;
+    const hp = 45 * def.hp * enemyHpScale(wave) * inf;
     const dmg = 5 * def.dmg * enemyDmgScale(wave);
     const e = w.spawnBossEnt(id, `b_${id}`, def.scale, hp, dmg, def.armor + wave, def.speed, def.range, def.atkCd, def.radius, !!def.flying);
     e.y = (w.fieldTop + w.fieldBot) / 2 + 10;
@@ -332,7 +332,7 @@ export class BossCtl {
     const w = this.w;
     const ab = t.ab;
     const e = c.e;
-    const dmg = ab.dmg * 3 * enemyDmgScale(w.wave) * (c.isMini ? 0.8 : ab.wipe ? 1.8 : 1.2);
+    const dmg = ab.dmg * 3 * enemyDmgScale(w.wave) * (c.isMini ? 0.9 : ab.wipe ? 2.6 : 1.4);
     // damage allies inside the shapes
     if (dmg > 0) {
       let hits = 0;

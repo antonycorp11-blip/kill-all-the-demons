@@ -4,7 +4,7 @@ import type { RegionDef } from '../data/regions';
 
 export const TERRAIN_SCALE = 2;
 export const TW = 1000; // half-res width  -> 2000 world px
-export const TH = 360; // half-res height -> 720 world px
+export const TH = 450; // half-res height -> 900 world px (extra room so the camera can zoom out for huge battles)
 
 // ---------- noise ----------
 function makeNoise(seed: number) {
@@ -258,7 +258,7 @@ export function generateTerrain(R: RegionDef, seed = 1): HTMLCanvasElement {
   // region-specific decor
   const leaf = R.decor === 'swamp' ? '#3a5a3a' : '#3a8a2a';
   const trunk = '#5a3a24';
-  const edgeTopY = 6, edgeBotY = TH - 50;
+  const edgeTopY = 46, edgeBotY = TH - 50;
   const place = (src: PixelCanvas, x: number, baseY: number) => stamp(p, src, x - src.w / 2, baseY - src.h);
 
   switch (R.decor) {
@@ -366,7 +366,7 @@ export function generateFortress(state: number): HTMLCanvasElement {
   const r = mulberry(42 + state * 3);
   const stone = '#9a96a0', stoneD = '#6a6672', stoneL = '#c4c0c8';
   // camp behind wall (tents on the left)
-  const tents = [[12, 70], [8, 160], [14, 250], [6, 320]];
+  const tents = [[12, TH * 0.2], [8, TH * 0.42], [14, TH * 0.62], [6, TH * 0.84]];
   for (const [tx, ty] of tents) {
     p.poly([[tx - 10, ty + 8], [tx, ty - 8], [tx + 10, ty + 8]], state >= 3 ? '#6a6a6a' : '#e8e0d0');
     p.poly([[tx, ty - 8], [tx + 10, ty + 8], [tx + 4, ty + 8]], state >= 3 ? '#4a4a4a' : '#b8b0a0');
@@ -387,7 +387,7 @@ export function generateFortress(state: number): HTMLCanvasElement {
   }
   p.line(wx + ww + 4, 0, wx + ww + 4, TH, stoneD);
   // towers
-  const towers = [36, 120, 240, 324];
+  const towers = [TH * 0.12, TH * 0.32, TH * 0.68, TH * 0.88].map(Math.round);
   for (const ty of towers) {
     p.ellipse(wx + 8, ty, 15, 12, stoneD);
     p.ellipse(wx + 8, ty - 1, 13, 10, stone);
@@ -397,14 +397,14 @@ export function generateFortress(state: number): HTMLCanvasElement {
     p.poly([[wx + 8, ty - 26], [wx + 20, ty], [wx + 12, ty]], '#1a3080');
     p.ellipse(wx + 8, ty, 12, 3, '#3a5ac8');
     // banner
-    if (state < 3 || ty !== 120) {
+    if (state < 3 || ty !== towers[1]) {
       p.line(wx + 8, ty - 26, wx + 8, ty - 36, '#5a3a2a');
-      p.poly([[wx + 8, ty - 36], [wx + 20, ty - 34], [wx + 8, ty - 30]], state >= 2 && ty === 240 ? '#3a3a3a' : '#3a64d8');
+      p.poly([[wx + 8, ty - 36], [wx + 20, ty - 34], [wx + 8, ty - 30]], state >= 2 && ty === towers[2] ? '#3a3a3a' : '#3a64d8');
       p.px(wx + 12, ty - 34, '#ffd24a');
     }
   }
   // gate
-  const gy = 180;
+  const gy = Math.round(TH / 2);
   p.rect(wx + 2, gy - 22, ww + 6, 44, stoneD);
   p.rect(wx + 6, gy - 16, ww - 2, 32, '#3a2418');
   for (let y = gy - 14; y < gy + 16; y += 4) p.line(wx + 6, y, wx + ww + 3, y, '#5a3a24');
@@ -414,7 +414,7 @@ export function generateFortress(state: number): HTMLCanvasElement {
   p.px(wx + ww + 5, gy - 34, '#ffd24a'); p.px(wx + ww + 6, gy - 34, '#ffd24a'); p.px(wx + ww + 5, gy - 33, '#ffd24a');
   p.poly([[wx + ww + 2, gy - 22], [wx + ww + 6, gy - 18], [wx + ww + 10, gy - 22]], state >= 3 ? '#4a2a2a' : '#3a64d8');
   // torches
-  for (const ty of [70, 150, 210, 290]) { p.rect(wx + ww + 6, ty, 2, 5, '#5a3a2a'); p.px(wx + ww + 6, ty - 1, '#ffd23a'); p.px(wx + ww + 7, ty - 2, '#ff7a2a'); }
+  for (const ty of [TH * 0.22, TH * 0.42, TH * 0.58, TH * 0.78].map(Math.round)) { p.rect(wx + ww + 6, ty, 2, 5, '#5a3a2a'); p.px(wx + ww + 6, ty - 1, '#ffd23a'); p.px(wx + ww + 7, ty - 2, '#ff7a2a'); }
 
   // damage
   if (state >= 1) {

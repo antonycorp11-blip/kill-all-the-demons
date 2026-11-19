@@ -3,7 +3,8 @@ import { World } from '../battle/world';
 import { BossCtl } from '../battle/boss';
 import { WaveDirector } from '../battle/waves';
 import { Skills } from '../battle/skills';
-import { spawnRecruit, tryRecruit, computeFormation, applyStats } from '../battle/army';
+import { HeroCtl } from '../battle/heroes';
+import { spawnRecruit, tryRecruit, computeFormation, applyStats, giveXp } from '../battle/army';
 import { ensureRegionArt } from '../art/assets';
 import { G, newRun, save, type RunState } from '../core/state';
 import { getMods, invalidateMods, essenceForRun } from '../core/mods';
@@ -14,12 +15,14 @@ import { audio } from '../audio/audio';
 import { UI } from '../ui/ui';
 
 export const WORLD_H = 720;
+const CAM_CY = 360;
 
 export class BattleScene extends Phaser.Scene {
   world!: World;
   boss!: BossCtl;
   waves!: WaveDirector;
   skills!: Skills;
+  heroes!: HeroCtl;
   bg!: Phaser.GameObjects.Image;
   bgNext: Phaser.GameObjects.Image | null = null;
   fort!: Phaser.GameObjects.Image;
@@ -56,6 +59,8 @@ export class BattleScene extends Phaser.Scene {
     this.boss = new BossCtl(this.world);
     this.waves = new WaveDirector(this.world, this.boss);
     this.skills = new Skills(this.world, this.boss);
+    this.heroes = new HeroCtl(this.world);
+    this.world.onHeroDeathCb = (e) => this.heroes.onDeath(e);
     this.boss.onPhase = (name, p) => UI.banner(`${name} enfurece!`, `Fase ${p + 1} — novos ataques devastadores`, '#ff5a4a');
     this.boss.onTelegraph = (ab) => { if (ab.wipe) UI.banner(`⚠ ${ab.name} ⚠`, 'Ataque devastador a caminho!', '#ff3a3a', 1.6); };
     this.waves.onCleared = () => this.onWaveCleared();
@@ -89,27 +94,49 @@ export class BattleScene extends Phaser.Scene {
   }
 
   // --------------------------------------------------------------- layout
+  /** World-space height the camera shows; grows (zooms out) as the battle gets more crowded. */
+  viewH = 720;
+  viewTarget = 720;
+  layoutViewH = 720;
+
   layout() {
     const w = this.scale.width, h = this.scale.height;
     if (!(w > 10 && h > 10)) return; // hidden tab / mid-resize: keep last valid layout
-    const zoom = h / WORLD_H;
-    // the left HUD column covers ~150 world px: shift the camera so the wall stays visible beside it
+    const viewH = this.viewH;
+    const zoom = h / viewH;
+    const uiScale = Math.min(w / 1280, h / 720); // same formula the DOM HUD uses
+    const toWorld = uiScale / zoom;
     const visW = w / zoom;
-    this.viewOffset = visW > 900 ? 150 : 90;
+    // the left HUD dock covers ~145 design px: shift the camera so the wall stays visible beside it
+    this.viewOffset = 145 * toWorld;
     const W = Math.max(640, visW - this.viewOffset);
     const cam = this.cameras.main;
     cam.setViewport(0, 0, w, h);
     cam.setZoom(zoom);
-    this.layoutW = w; this.layoutH = h;
+    this.layoutW = w; this.layoutH = h; this.layoutViewH = viewH;
     this.camCenterX = visW / 2 - this.viewOffset;
-    cam.centerOn(this.camCenterX, WORLD_H / 2);
-    this.world.setSize(W);
+    cam.centerOn(this.camCenterX, CAM_CY);
     const f = this.world;
-    const ys = [f.fieldTop + 170, f.fieldTop + 285, f.fieldBot - 40];
+    const viewTop = CAM_CY - viewH / 2, viewBot = CAM_CY + viewH / 2;
+    f.fieldTop = viewTop + 100 * toWorld + 38;
+    f.fieldBot = viewBot - 90 * toWorld - 6;
+    f.gateY = (f.fieldTop + f.fieldBot) / 2;
+    this.world.setSize(W);
+    const FH = f.fieldBot - f.fieldTop;
+    const ys = [f.fieldTop + FH * 0.4, f.fieldTop + FH * 0.66, f.fieldBot - 22];
     this.waves.portals = ys.map((y) => ({ x: W - 50, y }));
     this.portals.forEach((p, i) => p.setPosition(W - 46, ys[i] - 30));
     this.portalGlows.forEach((g, i) => g.setPosition(W - 46, ys[i] - 30).setScale(2.4));
-    this.bg.setPosition(-this.viewOffset - 60, 0).setDisplaySize(Math.max(2000, W + this.viewOffset + 60), WORLD_H);
+    this.bg.setPosition(-this.viewOffset - 60, CAM_CY - 450).setDisplaySize(Math.max(2000, W + this.viewOffset + 60), 900);
+    this.fort.setPosition(-20, f.gateY - 450);
+  }
+
+  /** Smoothly zoom the camera out when lots of units are on the field. */
+  private updateZoom(dt: number) {
+    const n = this.world.allies.length + this.world.enemies.length;
+    this.viewTarget = 720 + Math.max(0, Math.min(170, (n - 70) * 0.85));
+    this.viewH += (this.viewTarget - this.viewH) * Math.min(1, dt * 0.6);
+    if (Math.abs(this.viewH - this.layoutViewH) > 3) this.layout();
   }
 
   setRegionVisual(r: number, instant = false) {
@@ -128,20 +155,21 @@ export class BattleScene extends Phaser.Scene {
       return;
     }
     const nb = this.add.image(-this.viewOffset - 60, 0, `terrain_${r}`).setOrigin(0).setDepth(0.5).setAlpha(0);
-    nb.setDisplaySize(Math.max(2000, this.world.W + this.viewOffset + 60), WORLD_H);
+    nb.setPosition(-this.viewOffset - 60, CAM_CY - 450).setDisplaySize(Math.max(2000, this.world.W + this.viewOffset + 60), 900);
     this.tweens.add({ targets: nb, alpha: 1, duration: 1200, onComplete: () => { this.bg.setTexture(`terrain_${r}`); nb.destroy(); this.layout(); } });
   }
 
   // --------------------------------------------------------------- run lifecycle
   startDemo() {
     this.mode = 'demo';
-    this.world.clearAll(); this.boss.clear();
+    this.world.clearAll(); this.boss.clear(); this.heroes.clear();
     const run = newRun(0) as RunState & { demo?: boolean };
     run.demo = true;
     run.unlocked = ['militia', 'archer', 'swordsman', 'guardian', 'healer', 'mage', 'knight', 'lancer', 'summoner'];
     run.upgrades = { dmg: 6, hp: 8, cap: 10 };
     run.gold = 0; run.autoRecruit = false; run.autoSkills = false;
     run.wave = 3;
+    run.heroes = { arthon: 3, elandra: 3, seraphiel: 2 };
     G.run = run;
     invalidateMods();
     this.setRegionVisual(0, true);
@@ -152,12 +180,13 @@ export class BattleScene extends Phaser.Scene {
       if (e) applyStats(f, e, false);
     }
     f.wave = 3;
+    this.heroes.sync();
     this.waves.start(3);
     UI.hideHud();
   }
 
   newExpedition(startRegion: number) {
-    this.world.clearAll(); this.boss.clear();
+    this.world.clearAll(); this.boss.clear(); this.heroes.clear();
     G.run = newRun(startRegion);
     G.meta.runs++;
     invalidateMods();
@@ -171,6 +200,7 @@ export class BattleScene extends Phaser.Scene {
     for (let i = 0; i < startUnits; i++) spawnRecruit(this.world, i % 3 === 2 ? 'archer' : 'militia', { y: this.world.gateY + rand(-60, 60) });
     if (startRegion > 0) for (let i = 0; i < 4; i++) spawnRecruit(this.world, i % 2 ? 'archer' : 'militia', { level: 6 + startRegion * 3 });
     this.fortState = -1;
+    this.heroes.sync();
     this.waves.start(run.wave);
     UI.showHud();
     save();
@@ -179,12 +209,13 @@ export class BattleScene extends Phaser.Scene {
   resumeRun() {
     const run = G.run!;
     this.mode = 'run';
-    this.world.clearAll(); this.boss.clear();
+    this.world.clearAll(); this.boss.clear(); this.heroes.clear();
     invalidateMods();
     if (run.fortHp < 0) run.fortHp = getMods().fortMax;
     this.setRegionVisual(visualRegionForWave(run.wave), true);
     for (const u of run.army) spawnRecruit(this.world, u.cls, { level: u.level, vet: u.vet, xp: 0, stack: u.stack, x: this.world.fortX + 60 + Math.random() * 120 });
     if (!run.army.length) spawnRecruit(this.world, 'militia');
+    this.heroes.sync();
     this.waves.start(run.wave);
     UI.showHud();
   }
@@ -216,7 +247,12 @@ export class BattleScene extends Phaser.Scene {
     run.fortHp = Math.min(m.fortMax, run.fortHp + m.fortMax * m.fortBetween);
     if (m.interest > 0) { const g = Math.min(run.gold * m.interest, 50 * Math.pow(1.17, run.wave)); run.gold += g; }
     let vets = 0;
-    for (const a of this.world.allies) if (a.alive && a.kind === 'ally' && a.vet < 10) { a.vet++; applyStats(this.world, a); vets++; }
+    const surviveXp = 4 * (1 + run.wave * 0.1);
+    for (const a of this.world.allies) {
+      if (!a.alive || a.kind !== 'ally') continue;
+      giveXp(this.world, a, surviveXp);
+      if (a.vet < 10) { a.vet++; applyStats(this.world, a); vets++; }
+    }
     if (vets && this.waves.localWave() % 3 === 0) UI.toast(`${vets} tropas ganharam veteranice ★`);
     run.wave++;
     this.world.saveArmyToRun();
@@ -302,7 +338,8 @@ export class BattleScene extends Phaser.Scene {
     // camera shake
     const [sx, sy] = this.world.fx.cameraShakeOffset(realDt);
     const cam = this.cameras.main;
-    cam.centerOn(this.camCenterX + sx, WORLD_H / 2 + sy);
+    cam.centerOn(this.camCenterX + sx, CAM_CY + sy);
+    this.updateZoom(realDt);
     this.ambient(realDt);
     this.updateFortVisual(realDt);
     this.hudT -= realDt;
@@ -321,6 +358,7 @@ export class BattleScene extends Phaser.Scene {
       if (!UI.isBlocking()) this.waves.start(run.wave);
     }
     this.boss.update(dt);
+    this.heroes.update(dt);
     if (this.mode === 'run') {
       run.stats.time += dt;
       this.skills.update(dt);
@@ -409,7 +447,7 @@ export class BattleScene extends Phaser.Scene {
       this.fort.setTexture(`fort_${st}`);
       this.fortFires = [];
       const n = st === 0 ? 0 : st === 1 ? 1 : st === 2 ? 3 : 6;
-      for (let i = 0; i < n; i++) this.fortFires.push({ x: rand(50, 92), y: rand(this.world.fieldTop - 80, this.world.fieldBot + 60), t: 0 });
+      for (let i = 0; i < n; i++) this.fortFires.push({ x: rand(50, 92), y: rand(this.world.fieldTop - 40, this.world.fieldBot + 20), t: 0 });
     }
     for (const f of this.fortFires) {
       f.t -= dt;
