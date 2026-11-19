@@ -22,6 +22,7 @@ export class WaveDirector {
   bossSpawned = false;
   miniAt = 0;
   spawnedCount = 0;
+  trickleT = 3;
   totalCount = 0;
   portals: { x: number; y: number }[] = [];
   onCleared: () => void = () => {};
@@ -71,8 +72,28 @@ export class WaveDirector {
     this.onStart(wave);
   }
 
+  /** While a boss/miniboss is alive, small groups keep coming so the economy never stalls. */
+  private trickle(dt: number) {
+    const w = this.w;
+    if (!this.boss.list.some((c) => c.e.alive)) { this.trickleT = 3; return; }
+    this.trickleT -= dt;
+    if (this.trickleT > 0 || w.enemyCount() > w.enemyCap() * 0.5) return;
+    this.trickleT = rand(3.5, 5.5);
+    const lw = this.localWave();
+    const inf = isInfinite(w.wave);
+    const pool = REGIONS[w.region].pool.filter((p) => inf || p.from <= lw);
+    const n = 2 + Math.floor(Math.random() * 3) + Math.floor(w.wave / 15);
+    const portal = this.portals.length ? pick(this.portals) : { x: w.W + 20, y: (w.fieldTop + w.fieldBot) / 2 };
+    for (let i = 0; i < n; i++) {
+      const id = weightedPick(pool, (p) => p.w)!.id;
+      w.spawnEnemy(id, portal.x + rand(-6, 10), Math.max(w.fieldTop, Math.min(w.fieldBot, portal.y + rand(-40, 40))), { hpMul: 0.75 });
+    }
+    w.fx.glow(portal.x, portal.y, 0xff3a5c, 1.2, 0.35);
+  }
+
   update(dt: number) {
     const w = this.w;
+    if (this.state === 'spawning' || this.state === 'fighting') this.trickle(dt);
     if (this.state === 'spawning') {
       if (this.isBossWave && !this.bossSpawned) {
         const inf = isInfinite(w.wave);

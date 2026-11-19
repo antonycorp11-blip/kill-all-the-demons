@@ -193,7 +193,7 @@ export class World {
     e.x = this.W + 80; e.y = (this.fieldTop + this.fieldBot) / 2; e.r = radius; e.facing = -1;
     e.maxHp = e.hp = hp; e.dmg = dmg; e.armor = armor; e.speed = speed; e.range = range; e.atkCd = atkCd;
     e.large = true; e.flying = flying;
-    e.gold = 60 * enemyGoldScale(this.wave); e.xpVal = 200 * (1 + this.wave * 0.05); e.siege = 60 * siegeScale(this.wave);
+    e.gold = 130 * enemyGoldScale(this.wave); e.xpVal = 200 * (1 + this.wave * 0.05); e.siege = 60 * siegeScale(this.wave);
     this.attachSprite(e, key, scale, 0.94);
     e.aura = this.auraImg('glow');
     e.aura.setTint(0xff2a4a).setBlendMode(Phaser.BlendModes.ADD).setAlpha(0.45);
@@ -810,6 +810,13 @@ export class World {
       t.shield -= ab; amount -= ab;
       if (amount <= 0) return 0;
     }
+    // bosses and minibosses pay out while you fight them (80% of their bounty spread over their health bar)
+    if ((t.kind === 'boss' || t.miniboss) && t.gold > 0 && G.run) {
+      const dealt = Math.min(amount, Math.max(0, t.hp));
+      const g = (dealt / t.maxHp) * t.gold * 0.8 * getMods().gold * (G.run.modifier === 'siege' ? 1.5 : 1);
+      G.run.gold += g; G.run.stats.gold += g;
+      if (Math.random() < 0.08 && G.settings.quality !== 'low') this.fx.particle({ tex: 'coin', x: t.x + rand(-20, 20), y: t.y - 40, vz: 140, g: 380, vx: rand(-40, 40), life: 0.7, s0: 2, s1: 1.6 });
+    }
     t.hp -= amount;
     t.hurt = 0.08;
     if (src && src.team === 0) {
@@ -854,7 +861,7 @@ export class World {
     const run = G.run!;
     if (e.team === 1) {
       const m = getMods();
-      const gold = e.gold * m.gold * (run.modifier === 'siege' ? 1.5 : 1);
+      const gold = e.gold * m.gold * (run.modifier === 'siege' ? 1.5 : 1) * (e.kind === 'boss' || e.miniboss ? 0.2 : 1);
       run.gold += gold;
       run.stats.gold += gold;
       run.stats.kills++;
