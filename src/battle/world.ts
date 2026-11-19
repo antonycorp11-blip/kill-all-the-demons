@@ -15,8 +15,8 @@ import { REGIONS } from '../data/regions';
 
 export interface WorldHooks {
   toast(msg: string): void;
-  banner(title: string, sub?: string, color?: string): void;
-  fortHit(amount: number): void;
+  banner(title: string, sub?: string, color?: string, dur?: number): void;
+  fortHit(amount: number, source: string): void;
   defeat(): void;
   armyLevelUp(): void;
 }
@@ -725,9 +725,9 @@ export class World {
         e.atkT = e.atkCd * rand(0.9, 1.1);
         e.atkAnim = 0.28;
         if (ranged) {
-          this.proj.fire({ tex: b === 'caster' ? 'darkbolt' : 'firebolt', x: e.x - 6, y: e.y - 20, target: null, tx: this.fortX - 10, ty: e.y - 20, speed: 300, dmg: 0, src: e, team: 1, arc: 18, wall: true, add: true, scale: 2, tint: b === 'caster' ? 0xff6aff : 0xffffff });
+          this.proj.fire({ tex: b === 'caster' ? 'darkbolt' : 'firebolt', x: e.x - 6, y: e.y - 20, target: null, tx: this.fortX - 10, ty: e.y - 20, speed: 300, dmg: 0, src: e, team: 1, arc: 18, wall: true, siege: e.siege, srcName: ENEMIES[e.cls as EnemyId]?.name, add: true, scale: 2, tint: b === 'caster' ? 0xff6aff : 0xffffff });
         } else {
-          this.fortDamage(e.siege, e.x - 10, e.y);
+          this.fortDamage(e.siege, e.x - 10, e.y, ENEMIES[e.cls as EnemyId]?.name || 'Demônio', e.miniboss ? 0.08 : 0.05);
           this.fx.slash(e.x - 6, e.y, -1, 0xff6a5a, 0.7);
         }
       }
@@ -757,7 +757,7 @@ export class World {
     this.fx.glow(e.x, e.y - 8, 0xff7a2a, 1.8, 0.35);
     this.fx.shake(2.5, 0.12);
     audio.play('boom', 0.7);
-    if (e.atWall) this.fortDamage(e.siege, e.x, e.y);
+    if (e.atWall) this.fortDamage(e.siege, e.x, e.y, 'Diabrete Explosivo', 0.06);
     this.aoe(e, e.x, e.y, r, e.dmg, 0);
     e.gold *= 0.3;
     this.kill(e, null);
@@ -767,7 +767,7 @@ export class World {
   private onShotImpact(s: Shot, t: Ent | null, x: number, y: number) {
     if (s.onHit) s.onHit(x, y, t);
     if (s.wall) {
-      if (s.src) this.fortDamage(s.src.siege, x + 10, y + 20);
+      this.fortDamage(s.siege || 0, x + 10, y + 20, s.srcName || 'Atirador', 0.04);
       this.fx.burst(x + 10, y + 10, 0xff7a2a, 5, 60, { add: true });
       return;
     }
@@ -928,11 +928,23 @@ export class World {
     this.dying = this.dying.filter((e) => e.dead > 0);
   }
 
-  fortDamage(amount: number, x: number, y: number) {
+  /** Rolling log of who damaged the wall (shown in warnings and on defeat). */
+  fortLog = new Map<string, number>();
+  fortWarnT = 0;
+  lowWarned = false;
+
+  fortDamage(amount: number, x: number, y: number, source = 'Demônios', cap = 0.05) {
     const run = G.run!;
-    if (run.fortHp <= 0) return;
+    if (run.fortHp <= 0 || !(amount > 0)) return;
+    // no single blow may erase the wall: normal hits ≤5% of max, boss blows ≤8–20%
+    const max = getMods().fortMax;
+    amount = Math.min(amount, max * cap);
     run.fortHp -= amount;
-    this.hooks.fortHit(amount);
+    this.fortLog.set(source, (this.fortLog.get(source) || 0) + amount);
+    this.hooks.fortHit(amount, source);
+    this.fx.text(this.fortX + 6, y - 30, -amount as any, '#ff6a5a', amount > max * 0.04, false);
+    if (run.fortHp / max < 0.3 && !this.lowWarned) { this.lowWarned = true; this.hooks.banner('A muralha está caindo!', `${source} está atacando a fortaleza`, '#ff4a3a', 2); }
+    if (run.fortHp / max > 0.5) this.lowWarned = false;
     if (Math.random() < 0.5) this.fx.burst(this.fortX - 4, y - 10, 0xa8a0b0, 3, 50, { life: 0.4 });
     audio.play('wall', 0.6);
     if (run.fortHp <= 0) { run.fortHp = 0; this.hooks.defeat(); }

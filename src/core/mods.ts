@@ -31,7 +31,7 @@ export function getMods(): Mods {
     fortRegen: upLv('fregen') * 0.002,
     recruitInterval: 7 * Math.pow(0.9, upLv('recruit')) * (1 - treeLv('m_recruit') * 0.06) * Math.pow(0.85, traitLv('t_horde')),
     recruitCost: Math.pow(0.95, upLv('rcost')) * Math.pow(0.95, treeLv('m_rcost')),
-    cap: 6 + upLv('cap') * 3 + treeLv('m_cap') * 3 + traitLv('t_horde') * 5,
+    cap: 6 + upLv('cap') * 4 + treeLv('m_cap') * 5 + traitLv('t_horde') * 8,
     legacy: (0.06 + treeLv('m_legacy') * 0.04) * (traitLv('t_legacy') ? 2 : 1),
     vetBonus: 0.03 + treeLv('m_vet') * 0.01,
     essence: Math.pow(1.15, treeLv('m_essence')) * sh,
@@ -59,7 +59,7 @@ export function enemyHpScale(wave: number) { return Math.pow(1.18, wave - 1) * M
 export function enemyDmgScale(wave: number) { return Math.pow(1.18, wave - 1) * Math.pow(1.02, Math.max(0, wave - 12)); }
 export function enemyGoldScale(wave: number) { return Math.pow(1.125, wave - 1); }
 export function enemyArmorAdd(wave: number) { return Math.min(80, wave * 0.8); }
-export function siegeScale(wave: number) { return Math.pow(enemyDmgScale(wave), 0.85); }
+export function siegeScale(wave: number) { return Math.pow(enemyDmgScale(wave), 0.6); }
 
 export function essenceForRun(wave: number, kills: number, bossKills: number): number {
   const base = 2 * Math.pow(1.115, Math.max(0, wave - 1)) + kills * 0.02 + bossKills * 8;

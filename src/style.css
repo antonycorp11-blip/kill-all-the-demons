@@ -428,3 +428,9 @@ input[type=range] { pointer-events: auto; accent-color: var(--gold); }
 .treewrap.inmodal .tinfo { width: 310px; }
 .ti-row { display: flex; gap: 8px; align-items: center; }
 .gnode .gbuy { position: absolute; top: -4px; right: -2px; font-style: normal; font-size: 16px; color: #7aff6a; text-shadow: 0 0 6px #7aff6a, 0 1px 0 #000; }
+
+/* red pulse on the left edge while the wall is being hit */
+#wallalert { position: absolute; left: 0; top: 0; bottom: 0; width: 34%; background: linear-gradient(90deg, rgba(255,30,30,.38), transparent); opacity: 0; transition: opacity .25s; pointer-events: none; }
+#wallalert.on { opacity: 1; animation: wallpulse .5s infinite alternate; }
+@keyframes wallpulse { from { filter: brightness(1); } to { filter: brightness(1.6); } }
+.region .rbonus.cp { color: #7affb0; }

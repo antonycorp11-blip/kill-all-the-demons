@@ -46,6 +46,7 @@ class UIManager {
   init() {
     this.root = document.getElementById('ui')!;
     this.root.innerHTML = `<div class="stage">
+      <div id="wallalert"></div>
       <div id="hud" class="hidden"></div>
       <div id="banner"></div>
       <div id="toasts"></div>
@@ -259,10 +260,16 @@ class UIManager {
 
   unlockScale() { return Math.pow(1.17, Math.max(0, (G.run?.wave || 1) - 1) * 0.6); }
 
-  fortHit() {
+  wallToastT = 0;
+  fortHit(source = 'Demônios') {
     const el = this.els['h-life-fill']?.parentElement;
     if (!el) return;
     el.classList.remove('hit'); void el.offsetWidth; el.classList.add('hit');
+    const now = performance.now();
+    document.getElementById('wallalert')?.classList.add('on');
+    clearTimeout((this as any).wallAlertTimer);
+    (this as any).wallAlertTimer = setTimeout(() => document.getElementById('wallalert')?.classList.remove('on'), 900);
+    if (now - this.wallToastT > 6000) { this.wallToastT = now; this.toast(`⚠ ${source} está atacando a muralha!`); }
   }
 
   // ================================================================ banners & toasts
@@ -348,7 +355,7 @@ class UIManager {
         <img class="rboss" src="${spriteIcon('boss_' + R.boss)}">
         <div class="rname">${R.name}</div>
         <div class="rsub">${locked ? '🔒 Derrote o chefe anterior' : `Ondas ${i * 10 + 1}–${i * 10 + 10} • Chefe: ${BOSSES[R.boss].name}`}</div>
-        ${!locked && i > 0 ? `<div class="rbonus">Começa com ouro e veteranos extras</div>` : ''}
+        ${!locked && i > 0 ? (G.meta.checkpoints?.[String(i)] ? `<div class="rbonus cp">✔ Checkpoint: ${G.meta.checkpoints[String(i)].army.reduce((s, u) => s + u.stack, 0)} tropas, ${Object.values(G.meta.checkpoints[String(i)].upgrades).reduce((a, b) => a + b, 0)} melhorias, ${Object.keys(G.meta.checkpoints[String(i)].heroes).length} herói(s)</div>` : `<div class="rbonus">Sem checkpoint: começa só com ouro e veteranos</div>`) : ''}
       </div>`;
     }).join('');
     const infLocked = max < REGIONS.length;

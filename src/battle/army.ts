@@ -43,7 +43,7 @@ export function availableClasses(): ClassId[] {
 export function recruitCost(w: World, cls: ClassId): number {
   const m = getMods();
   const count = w.armyCount();
-  return Math.ceil(4 * CLASSES[cls].cost * Math.pow(enemyGoldScale(w.wave), 0.9) * m.recruitCost * (1 + count * 0.012));
+  return Math.ceil(4 * CLASSES[cls].cost * Math.pow(enemyGoldScale(w.wave), 0.9) * m.recruitCost * (1 + count * 0.006));
 }
 
 export function pickRecruitClass(): ClassId | null {

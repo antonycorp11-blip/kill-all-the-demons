@@ -18,7 +18,7 @@ export const UPGRADES: UpgradeDef[] = [
   { id: 'hp', name: 'Armaduras Reforçadas', icon: 'heart', base: 10, growth: 1.2, desc: (l) => `Vida das tropas x${Math.pow(1.1, l).toFixed(2)}` },
   { id: 'atkspd', name: 'Treino de Combate', icon: 'speed', base: 35, growth: 1.3, max: 20, desc: (l) => `Velocidade de ataque +${l * 5}%` },
   { id: 'armor', name: 'Escudos de Ferro', icon: 'shield', base: 25, growth: 1.25, max: 20, desc: (l) => `Armadura +${l * 6} (redução de dano)` },
-  { id: 'cap', name: 'Quartéis', icon: 'tent', base: 20, growth: 1.25, desc: (l) => `Capacidade do exército +${l * 3}` },
+  { id: 'cap', name: 'Quartéis', icon: 'tent', base: 18, growth: 1.21, desc: (l) => `Capacidade do exército +${l * 4}` },
   { id: 'recruit', name: 'Corneta de Guerra', icon: 'horn', base: 22, growth: 1.3, max: 15, desc: (l) => `Recrutamento ${pct(1 - Math.pow(0.92, l))} mais rápido` },
   { id: 'rcost', name: 'Estandartes', icon: 'flag', base: 30, growth: 1.28, max: 15, desc: (l) => `Custo de recrutas -${pct(1 - Math.pow(0.95, l))}` },
   { id: 'crit', name: 'Golpes Precisos', icon: 'crit', base: 45, growth: 1.3, max: 20, desc: (l) => `Chance crítica +${l * 2}%` },
@@ -114,7 +114,7 @@ export const META_NODES: MetaNode[] = [
   { id: 'u_lancer', name: 'Academia: Lanceiros', branch: 'ofensiva', icon: 'cls_lancer', base: 30, growth: 1, max: 1, depth: 5, lane: 0, req: ['m_boss'], unlockClass: 'lancer', desc: () => `Lanceiros desbloqueados em toda expedição` },
   // Comando
   { id: 'm_start', name: 'Recrutas Iniciais', branch: 'comando', icon: 'cls_militia', base: 4, growth: 1.8, max: 8, depth: 1, lane: 0, desc: (l) => `Começa com +${l} soldado(s)` },
-  { id: 'm_cap', name: 'Quartel-General', branch: 'comando', icon: 'tent', base: 8, growth: 1.5, max: 30, depth: 2, lane: -1, req: ['m_start'], desc: (l) => `Capacidade do exército +${l * 3}` },
+  { id: 'm_cap', name: 'Quartel-General', branch: 'comando', icon: 'tent', base: 8, growth: 1.5, max: 30, depth: 2, lane: -1, req: ['m_start'], desc: (l) => `Capacidade do exército +${l * 5}` },
   { id: 'm_recruit', name: 'Mobilização', branch: 'comando', icon: 'horn', base: 12, growth: 1.6, max: 10, depth: 2, lane: 1, req: ['m_start'], desc: (l) => `Recrutamento ${l * 6}% mais rápido` },
   { id: 'm_rapid', name: 'Reforços Rápidos', branch: 'comando', icon: 'flag', base: 30, growth: 1.7, max: 5, depth: 3, lane: -1, req: ['m_cap'], desc: (l) => `Ao perder todo o exército, chegam ${l * 3} recrutas` },
   { id: 'm_rcost', name: 'Intendência', branch: 'comando', icon: 'coin', base: 20, growth: 1.6, max: 10, depth: 3, lane: 1, req: ['m_recruit'], desc: (l) => `Recrutas ${l * 5}% mais baratos` },

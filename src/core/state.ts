@@ -31,6 +31,22 @@ export interface MetaState {
   seenBosses: string[];
   tutorialDone: boolean;
   totalKills: number;
+  checkpoints: Record<string, Checkpoint>;
+}
+
+/** Snapshot taken when a run first enters a region; starting there later resumes from it. */
+export interface Checkpoint {
+  wave: number;
+  upgrades: Record<string, number>;
+  mastery: Record<string, number>;
+  unlocked: ClassId[];
+  heroes: Record<string, number>;
+  skillLv: number[];
+  traits: Record<string, number>;
+  army: UnitSave[];
+  armyLevel: number;
+  gold: number;
+  savedAt: number;
 }
 
 export interface UnitSave { cls: ClassId; level: number; xp: number; vet: number; stack: number }
@@ -81,7 +97,7 @@ export function defaultSettings(): Settings {
 export function defaultMeta(): MetaState {
   return {
     essence: 0, essenceTotal: 0, tree: {}, maxRegion: 0, bestWave: 0, runs: 0, ascensions: 0, shards: 0, shardsTotal: 0,
-    seenEnemies: [], seenBosses: [], tutorialDone: false, totalKills: 0,
+    seenEnemies: [], seenBosses: [], tutorialDone: false, totalKills: 0, checkpoints: {},
   };
 }
 
@@ -100,6 +116,18 @@ export function newRun(startRegion: number): RunState {
   for (const c of CLASS_ORDER) classEnabled[c] = true;
   const startWave = startRegion * WAVES_PER_REGION + 1;
   const startGold = Math.floor(40 * Math.pow(1.8, treeLv('m_startgold')) - 40) + 20 + (startRegion > 0 ? Math.floor(25 * startWave * Math.pow(1.125, startWave - 1)) : 0);
+  const cp = startRegion > 0 ? G.meta.checkpoints?.[String(startRegion)] : undefined;
+  if (cp) {
+    const run = {
+      active: true, wave: startWave, startWave, gold: Math.max(startGold, cp.gold), fortHp: -1, upgrades: { ...cp.upgrades }, mastery: { ...mastery, ...cp.mastery },
+      unlocked: [...new Set([...unlocked, ...cp.unlocked])] as ClassId[],
+      weights: { front: 40, ranged: 35, support: 15, special: 10 }, classEnabled, stance: 'bal' as const, autoRecruit: true, autoBless: false, autoSkills: true,
+      armyLevel: cp.armyLevel, armyXp: 0, pendingBless: 0, traits: { ...cp.traits }, skillLv: [...cp.skillLv], legacy: {},
+      stats: { kills: 0, gold: 0, bossKills: 0, dmg: 0, lost: 0, recruited: 0, time: 0, regionsCleared: 0 },
+      essenceEarned: 0, army: cp.army.map((u) => ({ ...u })), modifier: null, heroes: { ...startHeroes(), ...cp.heroes },
+    };
+    return run;
+  }
   return {
     active: true, wave: startWave, startWave, gold: startGold, fortHp: -1, upgrades: {}, mastery, unlocked,
     weights: { front: 40, ranged: 35, support: 15, special: 10 }, classEnabled, stance: 'bal', autoRecruit: true, autoBless: false, autoSkills: true,
@@ -144,6 +172,7 @@ export function load(): boolean {
     const data = JSON.parse(raw) as Partial<GameData>;
     migrate(data);
     G.meta = { ...defaultMeta(), ...(data.meta || {}) };
+    G.meta.checkpoints = G.meta.checkpoints || {};
     G.settings = { ...defaultSettings(), ...(data.settings || {}) };
     G.run = data.run && data.run.active ? sanitizeRun(data.run) : null;
     G.savedAt = data.savedAt || Date.now();

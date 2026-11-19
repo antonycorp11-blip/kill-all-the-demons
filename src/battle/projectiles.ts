@@ -22,6 +22,8 @@ export interface ShotOpts {
   burn?: number;
   fall?: boolean; // meteor falling from sky
   wall?: boolean; // shot at fortress
+  siege?: number; // fortress damage captured at fire time (the shooter may be recycled before impact)
+  srcName?: string;
   onHit?: (x: number, y: number, target: Ent | null) => void;
 }
 
@@ -51,7 +53,11 @@ export class Projectiles {
     }
     const tx = o.target ? o.target.x : o.tx ?? o.x;
     const ty = o.target ? o.target.y - 10 : o.ty ?? o.y;
-    Object.assign(s, o);
+    // reset every optional field: pooled shots must never inherit flags (e.g. `wall`) from a previous shot
+    Object.assign(s, {
+      arc: 0, splash: 0, pierce: 0, chain: 0, tint: undefined, scale: undefined, add: false, burn: 0, fall: false,
+      wall: false, siege: 0, srcName: undefined, onHit: undefined, tx: undefined, ty: undefined,
+    }, o);
     s.active = true;
     s.sx = o.x; s.sy = o.y;
     s.tx = tx; s.ty = ty;

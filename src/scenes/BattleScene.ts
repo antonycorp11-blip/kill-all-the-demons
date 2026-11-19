@@ -4,7 +4,7 @@ import { BossCtl } from '../battle/boss';
 import { WaveDirector } from '../battle/waves';
 import { Skills } from '../battle/skills';
 import { HeroCtl } from '../battle/heroes';
-import { spawnRecruit, tryRecruit, computeFormation, applyStats, giveXp } from '../battle/army';
+import { spawnRecruit, tryRecruit, computeFormation, applyStats, giveXp, serializeArmy } from '../battle/army';
 import { ensureRegionArt } from '../art/assets';
 import { G, newRun, save, type RunState } from '../core/state';
 import { getMods, invalidateMods, essenceForRun } from '../core/mods';
@@ -51,8 +51,8 @@ export class BattleScene extends Phaser.Scene {
     this.cameras.main.setBackgroundColor('#140a18');
     this.world = new World(this, {
       toast: (m) => UI.toast(m),
-      banner: (t, s, c) => UI.banner(t, s, c),
-      fortHit: () => UI.fortHit(),
+      banner: (t, s, c, d) => UI.banner(t, s, c, d),
+      fortHit: (_a, src) => UI.fortHit(src),
       defeat: () => this.onDefeat(),
       armyLevelUp: () => this.onArmyLevel(),
     });
@@ -196,10 +196,17 @@ export class BattleScene extends Phaser.Scene {
     this.wipedNotified = false;
     this.skills.cd = [0, 0, 0, 0];
     this.setRegionVisual(visualRegionForWave(run.wave), true);
-    const startUnits = 2 + Math.floor(G.meta.tree['m_start'] || 0);
-    for (let i = 0; i < startUnits; i++) spawnRecruit(this.world, i % 3 === 2 ? 'archer' : 'militia', { y: this.world.gateY + rand(-60, 60) });
-    if (startRegion > 0) for (let i = 0; i < 4; i++) spawnRecruit(this.world, i % 2 ? 'archer' : 'militia', { level: 6 + startRegion * 3 });
+    if (run.army.length) {
+      // checkpoint: bring back the army that entered this region
+      for (const u of run.army) spawnRecruit(this.world, u.cls, { level: u.level, vet: u.vet, xp: 0, stack: u.stack, x: this.world.fortX + 40 + Math.random() * 160 });
+      UI.toast('Exército do checkpoint restaurado');
+    } else {
+      const startUnits = 2 + Math.floor(G.meta.tree['m_start'] || 0);
+      for (let i = 0; i < startUnits; i++) spawnRecruit(this.world, i % 3 === 2 ? 'archer' : 'militia', { y: this.world.gateY + rand(-60, 60) });
+      if (startRegion > 0) for (let i = 0; i < 4; i++) spawnRecruit(this.world, i % 2 ? 'archer' : 'militia', { level: 6 + startRegion * 3 });
+    }
     this.fortState = -1;
+    this.world.fortLog.clear();
     this.heroes.sync();
     this.waves.start(run.wave);
     UI.showHud();
@@ -229,6 +236,7 @@ export class BattleScene extends Phaser.Scene {
     if (vr !== this.regionShown) this.setRegionVisual(vr);
     const lw = this.waves.localWave(w);
     const R = REGIONS[vr];
+    if (lw === 1 && w > 1 && !inf) this.saveCheckpoint(regionForWave(w));
     // warm up the next region's procedural art during a calm moment to avoid a hitch later
     if (lw === 7) setTimeout(() => ensureRegionArt(this, visualRegionForWave(w + 10)), 500);
     if (lw === WAVES_PER_REGION) UI.banner(inf ? 'Guerra Infinita — Chefe!' : `Chefe: ${R.name}`, 'Prepare-se. Ele pode destruir o exército inteiro.', '#ff4a5a', 2.6);
@@ -237,6 +245,20 @@ export class BattleScene extends Phaser.Scene {
     else UI.banner(`Onda ${w}`, inf && run.modifier ? modName() : undefined, '#ffffff', 1.2);
     audio.play('wave');
     if (G.meta.bestWave < w) G.meta.bestWave = w;
+  }
+
+  /** Remember the army/upgrades when entering a region so later expeditions can start there at full strength. */
+  saveCheckpoint(region: number) {
+    const run = G.run!;
+    const prev = G.meta.checkpoints[String(region)];
+    const total = (u: Record<string, number>) => Object.values(u).reduce((a, b) => a + b, 0);
+    if (prev && total(prev.upgrades) > total(run.upgrades) + 3) return; // keep a clearly stronger snapshot
+    G.meta.checkpoints[String(region)] = {
+      wave: run.wave, upgrades: { ...run.upgrades }, mastery: { ...run.mastery }, unlocked: [...run.unlocked], heroes: { ...run.heroes },
+      skillLv: [...run.skillLv], traits: { ...run.traits }, army: serializeArmy(this.world), armyLevel: run.armyLevel, gold: Math.floor(run.gold), savedAt: Date.now(),
+    };
+    UI.toast(`Checkpoint salvo: ${REGIONS[region].name}`);
+    save();
   }
 
   onWaveCleared() {
@@ -292,7 +314,10 @@ export class BattleScene extends Phaser.Scene {
     this.world.fx.shake(14, 1.2);
     this.world.fx.flash(0xff2a2a, 0.6, 1.2);
     audio.play('defeat');
-    UI.banner('A fortaleza caiu!', 'A expedição terminou.', '#ff3a3a', 3);
+    const log = [...this.world.fortLog.entries()].sort((a, b) => b[1] - a[1]);
+    const total = log.reduce((s, [, v]) => s + v, 0) || 1;
+    const who = log.slice(0, 2).map(([k, v]) => `${k} (${Math.round((v / total) * 100)}%)`).join(', ');
+    UI.banner('A fortaleza caiu!', who ? `Derrubada por: ${who}` : 'A expedição terminou.', '#ff3a3a', 3.2);
     this.time.delayedCall(2600, () => UI.showResult('defeat'));
   }
 
@@ -311,9 +336,13 @@ export class BattleScene extends Phaser.Scene {
   // --------------------------------------------------------------- actions
   manualRecruit() {
     if (this.mode !== 'run') return false;
-    const ok = tryRecruit(this.world, true);
-    if (ok) audio.play('buy');
-    return ok;
+    // with a big army one tap calls a whole squad (each recruit still costs gold)
+    const batch = Math.max(1, Math.min(12, Math.floor(getMods().cap / 15)));
+    let n = 0;
+    if (tryRecruit(this.world, true)) n++;
+    while (n > 0 && n < batch && tryRecruit(this.world, false)) n++;
+    if (n) { audio.play('buy'); if (n > 1) UI.toast(`+${n} tropas convocadas`); }
+    return n > 0;
   }
 
   castSkill(i: number) {

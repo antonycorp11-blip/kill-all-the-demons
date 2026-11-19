@@ -147,11 +147,13 @@ export class BossCtl {
     }
     if (e.x > holdX) { w.moveToward(e, holdX, (w.fieldTop + w.fieldBot) / 2 + 10, e.speed * (e.x > w.W - 40 ? 2.5 : 1), dt); e.facing = -1; }
     else {
-      // no allies near: slowly advance toward the fortress (boss can siege it directly)
-      if (w.allies.length === 0 || e.x > w.fortX + 120) w.moveToward(e, w.fortX + 60, w.gateY, e.speed * 0.6, dt);
+      // bosses hunt the army; they only march on the wall when the whole army is gone
+      const prey = w.allyGrid.nearest(e.x, e.y, 3000);
+      if (prey) { w.moveToward(e, prey.x + e.range * 0.8, prey.y, e.speed * 0.8, dt); e.facing = prey.x >= e.x ? 1 : -1; return; }
+      if (e.x > w.fortX + 120) w.moveToward(e, w.fortX + 60, w.gateY, e.speed * 0.6, dt);
       if (e.x < w.fortX + 90 && e.atkT <= 0) {
         e.atkT = e.atkCd; e.atkAnim = 0.35;
-        w.fortDamage(e.siege, e.x - 40, e.y);
+        w.fortDamage(e.siege, e.x - 40, e.y, c.def.name, 0.08);
         w.fx.shake(4, 0.2);
       }
     }
@@ -345,7 +347,7 @@ export class BossCtl {
         hits++;
       }
     }
-    if (ab.fortress) w.fortDamage(e.siege * ab.fortress / 10, w.fortX, w.gateY);
+    if (ab.fortress) w.fortDamage(e.siege * ab.fortress / 10, w.fortX, w.gateY, `${c.def.name}: ${ab.name}`, 0.18);
     if (ab.summon) {
       for (let i = 0; i < ab.summon.count; i++) {
         if (w.enemies.length >= w.enemyCap() + 10) break;
