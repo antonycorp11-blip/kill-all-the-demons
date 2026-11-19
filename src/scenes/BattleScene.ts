@@ -38,6 +38,8 @@ export class BattleScene extends Phaser.Scene {
   overT = 0;
   lastAllyCount = 0;
   viewOffset = 150;
+  layoutW = 0;
+  layoutH = 0;
   camCenterX = 640;
 
   constructor() { super('Battle'); }
@@ -96,7 +98,9 @@ export class BattleScene extends Phaser.Scene {
     this.viewOffset = visW > 900 ? 150 : 90;
     const W = Math.max(640, visW - this.viewOffset);
     const cam = this.cameras.main;
+    cam.setViewport(0, 0, w, h);
     cam.setZoom(zoom);
+    this.layoutW = w; this.layoutH = h;
     this.camCenterX = visW / 2 - this.viewOffset;
     cam.centerOn(this.camCenterX, WORLD_H / 2);
     this.world.setSize(W);
@@ -287,6 +291,7 @@ export class BattleScene extends Phaser.Scene {
     const paused = UI.isBlocking();
     // portals & ambient animate even when paused for the title backdrop
     const realDt = Math.min(0.05, deltaMs / 1000);
+    if (this.scale.width !== this.layoutW || this.scale.height !== this.layoutH) this.layout();
     this.animatePortals(realDt);
     if (paused && this.mode !== 'demo') return;
     const speed = this.mode === 'run' ? G.settings.speed : 1;

@@ -70,6 +70,7 @@ class UIManager {
   bindScene(s: BattleScene) { this.scene = s; }
 
   fit() {
+    if (!this.stage) return;
     const w = window.innerWidth, h = window.innerHeight;
     if (!(w > 10 && h > 10)) return;
     const s = Math.min(w / 1280, h / 720);
