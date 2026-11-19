@@ -89,7 +89,7 @@ export class BattleScene extends Phaser.Scene {
     this.input.keyboard?.on('keydown-SPACE', () => this.manualRecruit());
 
     UI.bindScene(this);
-    if (G.run && G.run.active) this.resumeRun();
+    if (G.run && G.run.active) { this.resumeRun(); UI.showTitle(); }
     else this.startDemo();
   }
 

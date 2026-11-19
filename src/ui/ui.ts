@@ -4,7 +4,7 @@ import { getMods, invalidateMods, essenceForRun, ascensionShardsAvailable, shard
 import { fmt, fmtInt, fmtTime } from '../core/format';
 import { iconImg, iconURL } from '../art/fx';
 import { spriteIcon } from '../art/assets';
-import { UPGRADES, upgradeCost, META_NODES, META_BRANCHES, META_ROOT, metaCost, metaNodePos, TRAITS, SKILLS, skillCost, masteryCost, type MetaNode } from '../data/upgrades';
+import { UPGRADES, upgradeCost, UPG_TREE, UPG_BRANCHES, upgNodePos, META_NODES, META_BRANCHES, META_ROOT, metaCost, metaNodePos, TRAITS, SKILLS, skillCost, masteryCost, type MetaNode } from '../data/upgrades';
 import { CLASSES, CLASS_ORDER, ROLE_NAMES, TIER_LEVELS, type ClassId, type Role } from '../data/units';
 import { ENEMIES, ENEMY_ORDER } from '../data/enemies';
 import { BOSSES, BOSS_ORDER } from '../data/bosses';
@@ -432,12 +432,17 @@ class UIManager {
   }
 
   private bindTree() {
-    const view = document.getElementById('treeview');
-    const canvas = document.getElementById('tcanvas');
+    this.bindGraph('treeview', 'tcanvas', this.treeCam, (id) => { this.treeSel = id; document.getElementById('tinfo')!.innerHTML = this.treeInfo(); });
+  }
+
+  /** Generic pan / pinch / wheel / tap handling for node-graph screens. */
+  private bindGraph(viewId: string, canvasId: string, cam: { x: number; y: number; z: number; init: boolean }, onSelect: (id: string) => void, span = 900) {
+    const view = document.getElementById(viewId);
+    const canvas = document.getElementById(canvasId);
     if (!view || !canvas) return;
-    const cam = this.treeCam;
     const apply = () => { canvas.style.transform = `translate(${cam.x}px,${cam.y}px) scale(${cam.z})`; };
-    if (!cam.init) { cam.init = true; cam.z = 0.8; const r = view.getBoundingClientRect(); const s = this.stageScale(); cam.x = r.width / s / 2 - 1300 * cam.z; cam.y = r.height / s / 2 - 1300 * cam.z; apply(); }
+    if (!cam.init) { cam.init = true; const r = view.getBoundingClientRect(); const s = this.stageScale(); cam.z = Math.max(0.45, Math.min(1.1, (r.height / s) / span)); cam.x = r.width / s / 2 - 1300 * cam.z; cam.y = r.height / s / 2 - 1300 * cam.z; }
+    apply();
     const pts = new Map<number, { x: number; y: number }>();
     let moved = 0, pinch0 = 0, z0 = cam.z;
     view.onpointerdown = (e) => { view.setPointerCapture(e.pointerId); pts.set(e.pointerId, { x: e.clientX, y: e.clientY }); moved = 0; if (pts.size === 2) { const [a, b] = [...pts.values()]; pinch0 = Math.hypot(a.x - b.x, a.y - b.y); z0 = cam.z; } };
@@ -447,25 +452,31 @@ class UIManager {
       const s = this.stageScale();
       if (pts.size === 1) { cam.x += (e.clientX - p.x) / s; cam.y += (e.clientY - p.y) / s; moved += Math.abs(e.clientX - p.x) + Math.abs(e.clientY - p.y); }
       p.x = e.clientX; p.y = e.clientY;
-      if (pts.size === 2) { const [a, b] = [...pts.values()]; const d = Math.hypot(a.x - b.x, a.y - b.y); this.zoomTree(z0 * (d / pinch0) / cam.z); moved = 99; }
+      if (pts.size === 2) { const [a, b] = [...pts.values()]; const d = Math.hypot(a.x - b.x, a.y - b.y); this.zoomGraph(viewId, canvasId, cam, z0 * (d / pinch0) / cam.z); moved = 99; }
       apply();
     };
     const up = (e: PointerEvent) => {
       pts.delete(e.pointerId);
-      if (moved < 6 && pts.size === 0) {
+      if (moved < 8 && pts.size === 0) {
         const el = (document.elementFromPoint(e.clientX, e.clientY) as HTMLElement)?.closest('[data-node]') as HTMLElement | null;
-        if (el) { this.treeSel = el.dataset.node!; document.querySelectorAll('.gnode.sel').forEach((q) => q.classList.remove('sel')); el.classList.add('sel'); document.getElementById('tinfo')!.innerHTML = this.treeInfo(); audio.play('click'); }
+        if (el && view.contains(el)) {
+          view.querySelectorAll('.gnode.sel').forEach((q) => q.classList.remove('sel'));
+          el.classList.add('sel');
+          onSelect(el.dataset.node!);
+          audio.play('click');
+        }
       }
     };
     view.onpointerup = up; view.onpointercancel = up;
-    view.onwheel = (e) => { e.preventDefault(); this.zoomTree(e.deltaY < 0 ? 1.12 : 1 / 1.12); };
+    view.onwheel = (e) => { e.preventDefault(); this.zoomGraph(viewId, canvasId, cam, e.deltaY < 0 ? 1.12 : 1 / 1.12); };
   }
 
   private stageScale() { const t = this.stage.style.transform.match(/scale\(([\d.]+)\)/); return t ? parseFloat(t[1]) : 1; }
 
-  private zoomTree(f: number) {
-    const cam = this.treeCam;
-    const view = document.getElementById('treeview');
+  private zoomTree(f: number) { this.zoomGraph('treeview', 'tcanvas', this.treeCam, f); }
+
+  private zoomGraph(viewId: string, canvasId: string, cam: { x: number; y: number; z: number }, f: number) {
+    const view = document.getElementById(viewId);
     if (!view) return;
     const r = view.getBoundingClientRect();
     const s = this.stageScale();
@@ -474,7 +485,7 @@ class UIManager {
     cam.x = cx - ((cx - cam.x) * nz) / cam.z;
     cam.y = cy - ((cy - cam.y) * nz) / cam.z;
     cam.z = nz;
-    const c = document.getElementById('tcanvas');
+    const c = document.getElementById(canvasId);
     if (c) c.style.transform = `translate(${cam.x}px,${cam.y}px) scale(${cam.z})`;
   }
 
@@ -513,9 +524,9 @@ class UIManager {
   renderModal() {
     if (!this.modal) return;
     const titles: Record<string, [string, string]> = {
-      upgrades: ['Melhorias da Expedição', 'speed'], classes: ['Classes & Evolução', 'evo'], formation: ['Formação & Recrutamento', 'people'],
+      upgrades: ['Árvore de Melhorias', 'speed'], classes: ['Classes & Evolução', 'evo'], formation: ['Formação & Recrutamento', 'people'],
       skills: ['Habilidades do Comandante', 'fire'], blessing: ['Cartas de Herói', 'wing'], traits: ['Bênçãos & Legado', 'traits'],
-      codex: ['Códex', 'book'], hero: ['Herói', 'star'], pause: ['Pausado', 'pause'], result: ['Fim da Expedição', 'skull'], tutorial: ['Como jogar', 'book'], confirm: ['Confirmar', 'skull'],
+      codex: ['Códex', 'book'], hero: ['Herói', 'star'], meta: ['Árvore Eterna', 'gem'], pause: ['Pausado', 'pause'], result: ['Fim da Expedição', 'skull'], tutorial: ['Como jogar', 'book'], confirm: ['Confirmar', 'skull'],
     };
     const [title, ico] = titles[this.modal] || ['', 'book'];
     let body = '';
@@ -528,6 +539,7 @@ class UIManager {
       case 'traits': body = this.traitsView(); break;
       case 'codex': body = this.codexView(); break;
       case 'hero': body = this.heroView(this.modalArg); break;
+      case 'meta': body = this.treeView().replace('class="treewrap"', 'class="treewrap inmodal"'); break;
       case 'pause': body = this.pauseView(); break;
       case 'result': body = this.resultView(); break;
       case 'tutorial': body = this.tutorialView(); break;
@@ -541,22 +553,75 @@ class UIManager {
         <div class="mbody">${body}</div>
       </div>`;
     this.modalEl.classList.add('show');
+    if (this.modal === 'upgrades') this.bindGraph('uview', 'ucanvas', this.upgCam, (id) => { this.upgSel = id; document.getElementById('uinfo')!.innerHTML = this.upgInfo(); }, 600);
+    if (this.modal === 'meta') this.bindTree();
+  }
+
+  upgCam = { x: 0, y: 0, z: 0.8, init: false };
+  upgSel = 'dmg';
+
+  private upgState(id: string) {
+    const run = G.run!;
+    const u = UPGRADES.find((q) => q.id === id)!;
+    const lv = run.upgrades[id] || 0;
+    const t = UPG_TREE[id];
+    const reqOk = !t.req || (run.upgrades[t.req] || 0) > 0;
+    const maxed = u.max != null && lv >= u.max;
+    const cost = upgradeCost(u, lv);
+    return { u, lv, reqOk, maxed, cost, can: reqOk && !maxed && run.gold >= cost };
   }
 
   private upgradesView(): string {
+    const OFF = 1300;
+    const color = (b: string) => UPG_BRANCHES.find((q) => q.id === b)!.color;
+    const lines: string[] = [];
+    for (const id of Object.keys(UPG_TREE)) {
+      const t = UPG_TREE[id];
+      const p = upgNodePos(id);
+      const q = t.req ? upgNodePos(t.req) : { x: 0, y: 0 };
+      const st = this.upgState(id);
+      lines.push(`<line x1="${q.x + OFF}" y1="${q.y + OFF}" x2="${p.x + OFF}" y2="${p.y + OFF}" stroke="${st.lv > 0 ? color(t.branch) : st.reqOk ? '#7a6a9a' : '#3a2e4e'}" stroke-width="${st.lv > 0 ? 6 : 4}" stroke-linecap="round" ${st.lv > 0 ? 'class="lit"' : ''}/>`);
+    }
+    const labels = UPG_BRANCHES.map((b) => {
+      const a = (b.angle * Math.PI) / 180;
+      const far = 3 * 150 + 120;
+      return `<div class="tbranch" style="left:${Math.cos(a) * far + OFF}px;top:${Math.sin(a) * far + OFF}px;color:${b.color}">${b.name}</div>`;
+    }).join('');
+    const nodes = Object.keys(UPG_TREE).map((id) => {
+      const p = upgNodePos(id);
+      const st = this.upgState(id);
+      const cls = [st.reqOk ? '' : 'locked', st.maxed ? 'maxed' : '', st.can ? 'can' : '', st.lv > 0 ? 'owned' : '', this.upgSel === id ? 'sel' : ''].join(' ');
+      return `<div class="gnode ${cls}" data-node="${id}" style="left:${p.x + OFF}px;top:${p.y + OFF}px;--bc:${color(UPG_TREE[id].branch)}">${iconImg(st.u.icon)}<span class="glv">${st.lv}${st.u.max ? '/' + st.u.max : ''}</span>${st.can ? '<i class="gbuy">●</i>' : ''}</div>`;
+    }).join('');
+    const root = `<div class="gnode root" data-node="root" style="left:${OFF}px;top:${OFF}px">${iconImg('people', 'ico big')}</div>`;
+    return `<div class="treewrap inmodal">
+      <div class="treeview" id="uview">
+        <div class="tcanvas" id="ucanvas" style="transform:translate(${this.upgCam.x}px,${this.upgCam.y}px) scale(${this.upgCam.z})">
+          <svg width="2600" height="2600" class="tlines">${lines.join('')}</svg>${labels}${root}${nodes}
+        </div>
+      </div>
+      <div class="tzoom"><span data-act="uz:in">+</span><span data-act="uz:out">−</span><span data-act="uz:home">⌂</span></div>
+      <div class="tinfo" id="uinfo">${this.upgInfo()}</div>
+    </div>`;
+  }
+
+  private upgInfo(): string {
     const run = G.run!;
-    return `<div class="toolbar"><div class="seg"><span data-act="buymax:0" class="${this.buyMax ? '' : 'on'}">x1</span><span data-act="buymax:1" class="${this.buyMax ? 'on' : ''}">Máx</span></div><span class="muted">Ouro vem de cada demônio abatido. Recrutas também custam ouro.</span></div>
-    <div class="grid upg">${UPGRADES.map((u) => {
-      const lv = run.upgrades[u.id] || 0;
-      const maxed = u.max != null && lv >= u.max;
-      const cost = upgradeCost(u, lv);
-      const can = !maxed && run.gold >= cost;
-      return `<div class="ucard ${can ? 'can' : ''} ${maxed ? 'maxed' : ''}" data-act="${maxed ? '' : 'upg:' + u.id}">
-        ${iconImg(u.icon, 'ico mid')}<div class="un">${u.name}<span class="ul">Nv ${lv}${u.max ? '/' + u.max : ''}</span></div>
-        <div class="ud">${u.desc(lv)}${maxed ? '' : `<span class="next"> → ${u.desc(lv + 1).replace(/^.*?(x[\d.]+|[+\-]?[\d.]+%?)/, '$1')}</span>`}</div>
-        <div class="uc">${maxed ? 'MÁX' : `${iconImg('coin', 'ico tiny')}${fmt(cost)}`}</div>
-      </div>`;
-    }).join('')}</div>`;
+    if (this.upgSel === 'root' || !UPG_TREE[this.upgSel]) {
+      return `<div class="ti-head">${iconImg('people', 'ico big')}<div><div class="ti-name">Melhorias da Expedição</div><div class="ti-branch">Ouro: ${fmt(run.gold)}</div></div></div>
+        <div class="ti-desc">Cada nó melhora o exército nesta expedição. Compre um nó para liberar os próximos do mesmo ramo.</div>
+        <div class="ti-hint">Arraste para mover • pinça ou +/− para zoom • toque num nó</div>`;
+    }
+    const st = this.upgState(this.upgSel);
+    const t = UPG_TREE[this.upgSel];
+    const b = UPG_BRANCHES.find((q) => q.id === t.branch)!;
+    const reqName = t.req ? UPGRADES.find((q) => q.id === t.req)!.name : '';
+    return `<div class="ti-head">${iconImg(st.u.icon, 'ico big')}<div><div class="ti-name">${st.u.name}</div><div class="ti-branch" style="color:${b.color}">${b.name} • Nível ${st.lv}${st.u.max ? '/' + st.u.max : ''}</div></div></div>
+      <div class="ti-desc">Atual: <b>${st.u.desc(st.lv)}</b><br>${st.maxed ? '<b>Nível máximo</b>' : `Próximo: <b class="g">${st.u.desc(st.lv + 1)}</b>`}</div>
+      ${!st.reqOk ? `<div class="ti-req">🔒 Requer: ${reqName}</div>` : ''}
+      ${st.maxed ? '' : `<div class="ti-row"><button class="btn ${st.can ? 'gold' : 'disabled'}" data-act="upg:${this.upgSel}">Comprar • ${iconImg('coin', 'ico tiny')} ${fmt(st.cost)}</button>
+        <button class="btn sm ${st.can ? '' : 'disabled'}" data-act="upgmax:${this.upgSel}">Máx</button></div>`}
+      <div class="ti-ess">${iconImg('coin')} <b>${fmt(run.gold)}</b> ouro</div>`;
   }
 
   private classesView(): string {
@@ -634,8 +699,8 @@ class UIManager {
     const m = getMods();
     const owned = HERO_ORDER.filter((h) => (run.heroes[h] || 0) > 0);
     const heroOpts: string[] = [];
-    if (owned.length < m.heroSlots) for (const h of HERO_ORDER) if (!run.heroes[h]) heroOpts.push('hr:' + h);
-    for (const h of owned) if (run.heroes[h] < MAX_STARS) heroOpts.push('hp:' + h);
+    if (owned.length < m.heroSlots) for (const h of HERO_ORDER) if (!run.heroes[h]) heroOpts.push('hr-' + h);
+    for (const h of owned) if (run.heroes[h] < MAX_STARS) heroOpts.push('hp-' + h);
     const picks = shuffle(heroOpts).slice(0, m.blessChoices);
     if (picks.length < m.blessChoices) {
       const pool = TRAITS.filter((t) => (run.traits[t.id] || 0) < t.max && (!t.cls || run.unlocked.includes(t.cls)));
@@ -646,10 +711,10 @@ class UIManager {
 
   private cardHtml(id: string): string {
     const run = G.run!;
-    if (id.startsWith('hr:') || id.startsWith('hp:')) {
+    if (id.startsWith('hr-') || id.startsWith('hp-')) {
       const h = HEROES[id.slice(3)];
       const st = run.heroes[h.id] || 0;
-      const recruit = id.startsWith('hr:');
+      const recruit = id.startsWith('hr-');
       const next = recruit ? 1 : st + 1;
       const unlock = h.abilities.find((ab) => ab.star === next);
       const stars = '★'.repeat(next) + '<i>' + '★'.repeat(MAX_STARS - next) + '</i>';
@@ -761,6 +826,7 @@ class UIManager {
     return `<div class="pause">
       <div class="pbtns">
         <button class="btn big gold" data-act="close">▶ Continuar</button>
+        <button class="btn" data-act="open:meta">Árvore Eterna</button>
         <button class="btn" data-act="open:tutorial">Como jogar</button>
         <button class="btn red" data-act="askretreat">Recuar (encerrar expedição)</button>
       </div>
@@ -820,14 +886,20 @@ class UIManager {
 
   private applyBlessing(id: string, auto = false) {
     const run = G.run!;
-    if (id.startsWith('hr:') || id.startsWith('hp:')) {
+    if (id.startsWith('hr-') || id.startsWith('hp-')) {
       const hid = id.slice(3);
       run.heroes[hid] = Math.min(MAX_STARS, (run.heroes[hid] || 0) + 1);
       run.pendingBless = Math.max(0, run.pendingBless - 1);
       this.scene?.heroes.sync();
-      if (!run.demo) this.toast(id.startsWith('hr:') ? `${HEROES[hid].name} se juntou ao exército!` : `${HEROES[hid].name} agora tem ${run.heroes[hid]}★`);
+      if (!run.demo) {
+        const h = HEROES[hid];
+        const col = '#' + h.aura.toString(16).padStart(6, '0');
+        if (id.startsWith('hr-')) this.banner(`${h.name} entrou na batalha!`, h.title, col, 2.4);
+        else this.banner(`${h.name} ${'★'.repeat(run.heroes[hid])}`, 'Herói promovido', col, 2);
+      }
       return;
     }
+    if (!TRAITS.find((q) => q.id === id)) { run.pendingBless = Math.max(0, run.pendingBless - 1); return; }
     run.traits[id] = (run.traits[id] || 0) + 1;
     run.pendingBless = Math.max(0, run.pendingBless - 1);
     invalidateMods();
@@ -911,7 +983,9 @@ class UIManager {
         audio.play('click'); this.renderModal(); this.updateHud(); save();
         break;
       case 'buymax': this.buyMax = a1 === '1'; this.renderModal(); break;
-      case 'upg': this.buyUpgrade(a1); break;
+      case 'upg': this.buyUpgrade(a1, false); break;
+      case 'upgmax': this.buyUpgrade(a1, true); break;
+      case 'uz': if (a1 === 'home') { this.upgCam.init = false; this.renderModal(); } else this.zoomGraph('uview', 'ucanvas', this.upgCam, a1 === 'in' ? 1.2 : 1 / 1.2); break;
       case 'unlock': {
         const c = a1 as ClassId;
         const cost = Math.ceil(CLASSES[c].unlockGold * this.unlockScale());
@@ -988,9 +1062,10 @@ class UIManager {
     }
   }
 
-  private buyUpgrade(id: string) {
+  private buyUpgrade(id: string, max = false) {
     const run = G.run!;
     const u = UPGRADES.find((q) => q.id === id)!;
+    if (UPG_TREE[id]?.req && !(run.upgrades[UPG_TREE[id].req!] || 0)) { this.toast('Compre o nó anterior primeiro'); return; }
     let bought = 0;
     do {
       const lv = run.upgrades[id] || 0;
@@ -1000,7 +1075,7 @@ class UIManager {
       run.gold -= cost;
       run.upgrades[id] = lv + 1;
       bought++;
-    } while (this.buyMax && bought < 500);
+    } while (max && bought < 500);
     if (bought) {
       audio.play('buy');
       const prevMax = getMods().fortMax;
@@ -1025,7 +1100,7 @@ class UIManager {
     save();
     audio.play('buy');
     this.treeSel = id;
-    this.showCamp('tree');
+    if (this.modal === 'meta') this.renderModal(); else this.showCamp('tree');
   }
 }
 

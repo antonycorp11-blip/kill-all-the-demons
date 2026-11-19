@@ -420,3 +420,11 @@ input[type=range] { pointer-events: auto; accent-color: var(--gold); }
 .dots { display: flex; gap: 6px; justify-content: center; margin: 10px 0; }
 .dots i { width: 10px; height: 10px; border-radius: 50%; background: #4a3a5a; }
 .dots i.on { background: var(--gold); }
+
+/* node-graph inside modals (Melhorias / Árvore Eterna in pause) */
+.mframe.m-upgrades, .mframe.m-meta { width: min(1200px, 96%); }
+.m-upgrades .mbody, .m-meta .mbody { padding: 0; overflow: hidden; }
+.treewrap.inmodal { position: relative; inset: auto; height: 520px; }
+.treewrap.inmodal .tinfo { width: 310px; }
+.ti-row { display: flex; gap: 8px; align-items: center; }
+.gnode .gbuy { position: absolute; top: -4px; right: -2px; font-style: normal; font-size: 16px; color: #7aff6a; text-shadow: 0 0 6px #7aff6a, 0 1px 0 #000; }

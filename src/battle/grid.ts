@@ -7,7 +7,7 @@ export class Grid {
   rows = 1;
   buckets: Ent[][] = [];
 
-  constructor(cell = 48) { this.cell = cell; }
+  constructor(cell = 48) { this.cell = cell; this.reset(2000, 1000); }
 
   reset(w: number, h: number) {
     this.cols = Math.ceil(w / this.cell) + 2;
@@ -38,6 +38,7 @@ export class Grid {
     for (let cy = y0; cy <= y1; cy++) {
       for (let cx = x0; cx <= x1; cx++) {
         const b = this.buckets[cy * this.cols + cx];
+        if (!b) continue;
         for (let i = 0; i < b.length; i++) {
           const e = b[i];
           if (!e.alive) continue;

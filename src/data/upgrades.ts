@@ -31,6 +31,38 @@ export const UPGRADES: UpgradeDef[] = [
   { id: 'fregen', name: 'Pedreiros', icon: 'hammer', base: 50, growth: 1.3, max: 12, desc: (l) => `Fortaleza regenera ${(l * 0.2).toFixed(1)}%/s` },
 ];
 
+// In-run upgrade tree layout (Melhorias da Expedição): each upgrade is a node; children need their parent bought once.
+export const UPG_BRANCHES: { id: string; name: string; color: string; angle: number }[] = [
+  { id: 'ataque', name: 'Ataque', color: '#ff5a4a', angle: -40 },
+  { id: 'comando', name: 'Comando', color: '#ffb02a', angle: 40 },
+  { id: 'fortaleza', name: 'Fortaleza', color: '#7aff6a', angle: 140 },
+  { id: 'defesa', name: 'Defesa', color: '#4aa8ff', angle: 220 },
+];
+export const UPG_TREE: Record<string, { branch: string; depth: number; lane: number; req?: string }> = {
+  dmg: { branch: 'ataque', depth: 1, lane: 0 },
+  atkspd: { branch: 'ataque', depth: 2, lane: -1, req: 'dmg' },
+  crit: { branch: 'ataque', depth: 2, lane: 1, req: 'dmg' },
+  aoe: { branch: 'ataque', depth: 3, lane: -1, req: 'atkspd' },
+  critdmg: { branch: 'ataque', depth: 3, lane: 1, req: 'crit' },
+  cap: { branch: 'comando', depth: 1, lane: 0 },
+  recruit: { branch: 'comando', depth: 2, lane: -1, req: 'cap' },
+  rcost: { branch: 'comando', depth: 2, lane: 1, req: 'cap' },
+  xp: { branch: 'comando', depth: 3, lane: 0, req: 'recruit' },
+  fort: { branch: 'fortaleza', depth: 1, lane: 0 },
+  fregen: { branch: 'fortaleza', depth: 2, lane: -1, req: 'fort' },
+  gold: { branch: 'fortaleza', depth: 2, lane: 1, req: 'fort' },
+  hp: { branch: 'defesa', depth: 1, lane: 0 },
+  armor: { branch: 'defesa', depth: 2, lane: -1, req: 'hp' },
+  regen: { branch: 'defesa', depth: 2, lane: 1, req: 'hp' },
+};
+export function upgNodePos(id: string) {
+  const n = UPG_TREE[id];
+  const b = UPG_BRANCHES.find((q) => q.id === n.branch)!;
+  const a = (b.angle * Math.PI) / 180;
+  const d = n.depth * 150 + 20, L = 110;
+  return { x: Math.cos(a) * d - Math.sin(a) * n.lane * L, y: Math.sin(a) * d + Math.cos(a) * n.lane * L };
+}
+
 export function upgradeCost(def: UpgradeDef, lvl: number): number {
   return Math.ceil(def.base * Math.pow(def.growth, lvl));
 }
