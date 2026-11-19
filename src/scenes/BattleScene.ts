@@ -104,12 +104,14 @@ export class BattleScene extends Phaser.Scene {
     if (!(w > 10 && h > 10)) return; // hidden tab / mid-resize: keep last valid layout
     const viewH = this.viewH;
     const zoom = h / viewH;
-    const uiScale = Math.min(w / 1280, h / 720); // same formula the DOM HUD uses
+    UI.readSafeArea();
+    const sa = UI.safe;
+    const uiScale = Math.min((w - sa.l - sa.r) / 1280, (h - sa.t - sa.b) / 720); // same formula the DOM HUD uses
     const toWorld = uiScale / zoom;
     const visW = w / zoom;
-    // the left HUD dock covers ~145 design px: shift the camera so the wall stays visible beside it
-    this.viewOffset = 145 * toWorld;
-    const W = Math.max(640, visW - this.viewOffset);
+    // the left HUD dock covers ~145 design px (+ the notch): shift the camera so the wall stays visible beside it
+    this.viewOffset = 145 * toWorld + sa.l / zoom;
+    const W = Math.max(640, visW - this.viewOffset - sa.r / zoom);
     const cam = this.cameras.main;
     cam.setViewport(0, 0, w, h);
     cam.setZoom(zoom);
@@ -118,8 +120,8 @@ export class BattleScene extends Phaser.Scene {
     cam.centerOn(this.camCenterX, CAM_CY);
     const f = this.world;
     const viewTop = CAM_CY - viewH / 2, viewBot = CAM_CY + viewH / 2;
-    f.fieldTop = viewTop + 100 * toWorld + 38;
-    f.fieldBot = viewBot - 90 * toWorld - 6;
+    f.fieldTop = viewTop + 100 * toWorld + sa.t / zoom + 38;
+    f.fieldBot = viewBot - 90 * toWorld - sa.b / zoom - 6;
     f.gateY = (f.fieldTop + f.fieldBot) / 2;
     this.world.setSize(W);
     const FH = f.fieldBot - f.fieldTop;

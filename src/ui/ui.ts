@@ -71,14 +71,40 @@ class UIManager {
 
   bindScene(s: BattleScene) { this.scene = s; }
 
+  /** Device safe-area insets in CSS px (iPhone notch / Dynamic Island / home indicator). */
+  safe = { l: 0, r: 0, t: 0, b: 0 };
+  hudScale = 1;
+  private probe: HTMLElement | null = null;
+
+  readSafeArea() {
+    if (!this.probe) {
+      this.probe = document.createElement('div');
+      this.probe.style.cssText = 'position:fixed;left:0;top:0;width:0;height:0;visibility:hidden;pointer-events:none;' +
+        'padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);';
+      document.body.appendChild(this.probe);
+    }
+    const cs = getComputedStyle(this.probe);
+    const px = (v: string) => parseFloat(v) || 0;
+    this.safe = { t: px(cs.paddingTop), r: px(cs.paddingRight), b: px(cs.paddingBottom), l: px(cs.paddingLeft) };
+  }
+
   fit() {
     if (!this.stage) return;
     const w = window.innerWidth, h = window.innerHeight;
     if (!(w > 10 && h > 10)) return;
-    const s = Math.min(w / 1280, h / 720);
-    this.stage.style.width = `${w / s}px`;
-    this.stage.style.height = `${h / s}px`;
+    this.readSafeArea();
+    // the HUD lives inside the safe area; the battlefield still fills the whole screen behind it
+    const { l, r, t, b } = this.safe;
+    const aw = w - l - r, ah = h - t - b;
+    const s = Math.min(aw / 1280, ah / 720);
+    this.hudScale = s;
+    this.stage.style.left = `${l}px`;
+    this.stage.style.top = `${t}px`;
+    this.stage.style.width = `${aw / s}px`;
+    this.stage.style.height = `${ah / s}px`;
     this.stage.style.transform = `scale(${s})`;
+    // phones: enlarge the most-used touch targets so they stay ≥ ~44px on screen
+    this.stage.classList.toggle('touch', s < 0.75);
   }
 
   isBlocking() { return this.screen !== null || this.modal !== null; }
@@ -132,11 +158,11 @@ class UIManager {
         <div class="sp-row">${iconImg('skull')}<span>Abates</span><b id="h-kills">0</b></div>
       </div>
     </div>
+    <div class="recruitbox plate">
+      <div class="rgrid" id="h-recruit"></div>
+      <div class="rbar"><i id="h-rtimer"></i></div>
+    </div>
     <div class="bottombar">
-      <div class="recruitbox plate">
-        <div class="rgrid" id="h-recruit"></div>
-        <div class="rbar"><i id="h-rtimer"></i></div>
-      </div>
       <div class="bbtn" data-act="open:classes">${iconImg('evo', 'ico mid')}<span>Classes</span><div class="badge hidden" id="b-classes">!</div></div>
       <div class="bbtn" data-act="open:upgrades">${iconImg('speed', 'ico mid')}<span>Melhorias</span><div class="badge hidden" id="b-upg">!</div></div>
       <div class="bbtn" data-act="open:formation">${iconImg('people', 'ico mid')}<span>Formação</span></div>
@@ -158,6 +184,7 @@ class UIManager {
     const key = classes.join(',');
     if (key !== this.recruitKey) {
       this.recruitKey = key;
+      box.style.gridTemplateColumns = `repeat(${Math.min(5, classes.length)}, var(--rsq, 64px))`;
       box.innerHTML = classes.map((c) => `<div class="rsq" data-act="rc:${c}" title="${CLASSES[c].name}"><img src="${spriteIcon('cls_' + c)}"><b data-rc="${c}">0</b></div>`).join('');
     }
     const full = sc.world.armyCount() >= getMods().cap;

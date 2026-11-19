@@ -448,3 +448,25 @@ input[type=range] { pointer-events: auto; accent-color: var(--gold); }
 .recruitbox .rbar i { display: block; height: 100%; background: #ffe08a; }
 .bottombar .recruitbox { margin-right: auto; }
 .bottombar .skillrow { margin-left: auto; }
+
+/* v2: bigger recruit buttons in their own bottom-left panel (easy to tap on phones) */
+.bottombar { left: 360px; }
+.recruitbox { position: absolute !important; left: 10px; bottom: 8px; padding: 6px 8px 10px; pointer-events: auto; }
+.bottombar .recruitbox { margin-right: 0; }
+.rgrid { grid-template-columns: repeat(5, 64px); grid-auto-rows: 58px !important; gap: 5px !important; }
+.rsq { border-radius: 12px !important; border-width: 3px !important; align-items: center !important; }
+.rsq img { width: 42px !important; height: 42px !important; margin-top: -10px !important; }
+.rsq b { font-size: 14px !important; line-height: 16px !important; padding: 1px 0; }
+
+/* phones (HUD scaled below 0.75): bigger touch targets */
+.stage.touch { --rsq: 86px; }
+.stage.touch .rgrid { grid-auto-rows: 76px !important; gap: 6px !important; }
+.stage.touch .rsq img { width: 56px !important; height: 56px !important; margin-top: -12px !important; }
+.stage.touch .rsq b { font-size: 18px !important; line-height: 20px !important; }
+.stage.touch .bottombar { left: 470px; height: 90px; }
+.stage.touch .bbtn { width: 108px; font-size: 16px; }
+.stage.touch .bbtn img.mid { width: 38px !important; height: 38px !important; }
+.stage.touch .skill { width: 78px; }
+.stage.touch .skill img.sk { width: 54px !important; height: 54px !important; }
+.stage.touch .dbtn { padding: 8px 0 6px; font-size: 13px; }
+.stage.touch .gearbtn { width: 48px; height: 48px; }
