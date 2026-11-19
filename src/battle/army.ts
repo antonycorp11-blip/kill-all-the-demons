@@ -144,7 +144,7 @@ export function tryRecruit(w: World, manual: boolean, forcedCls?: ClassId): bool
 
 export function computeFormation(w: World) {
   const run = G.run!;
-  const lineX = run.stance === 'def' ? w.fortX + 150 : run.stance === 'off' ? Math.max(w.fortX + 300, w.W * 0.5) : w.fortX + 250;
+  const lineX = Math.min(w.frontX - 30, run.stance === 'def' ? w.fortX + 150 : run.stance === 'off' ? w.frontX - 30 : w.fortX + (w.frontX - w.fortX) * 0.6);
   const groups: Record<string, Ent[]> = { front: [], ranged: [], support: [], special: [] };
   for (const a of w.allies) if (a.alive && a.kind === 'ally') groups[a.role].push(a);
   const top = w.fieldTop + 22, bot = w.fieldBot - 22;

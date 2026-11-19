@@ -46,7 +46,7 @@ export class WaveDirector {
     this.isBossWave = lw === WAVES_PER_REGION;
     this.isMiniWave = lw === 5;
     this.bossSpawned = false;
-    let count = Math.floor(5 + wave * 1.7 + lw * 0.8);
+    let count = Math.floor(2 + wave * 2.5 + lw * 1.0);
     let hpMul = 1;
     if (run.modifier === 'swarm') { count = Math.floor(count * 1.5); hpMul = 0.7; }
     if (this.isBossWave) count = Math.floor(count * 0.45);
@@ -64,7 +64,7 @@ export class WaveDirector {
     // groups of imps at start for readability
     this.spawnedCount = 0;
     this.totalCount = this.queue.length;
-    this.spawnGap = Math.max(0.1, 0.85 - wave * 0.012);
+    this.spawnGap = Math.max(0.08, 0.5 - wave * 0.01);
     this.spawnT = 0.6;
     this.miniAt = Math.floor(count * 0.5);
     this.state = 'spawning';
@@ -87,7 +87,7 @@ export class WaveDirector {
       this.spawnT -= dt;
       if (this.spawnT <= 0 && this.queue.length) {
         if (w.enemyCount() >= w.enemyCap()) { this.spawnT = 0.3; return; }
-        const group = Math.min(this.queue.length, 1 + Math.floor(Math.random() * Math.min(8, 2 + w.wave / 4)));
+        const group = Math.min(this.queue.length, 2 + Math.floor(Math.random() * Math.min(9, 2 + w.wave / 3)));
         const portal = this.portals.length ? pick(this.portals) : { x: w.W + 20, y: (w.fieldTop + w.fieldBot) / 2 };
         for (let i = 0; i < group; i++) {
           const q = this.queue.shift()!;

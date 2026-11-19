@@ -85,6 +85,9 @@ export class World {
   summonCount() { let n = 0; for (const a of this.allies) if (a.alive && a.kind === 'summon') n++; return n; }
   enemyCount() { return this.enemies.length; }
   markFormation() { this.formationDirty = true; }
+  /** Allied units never advance past the middle of the field, so demons are seen coming from the portals. */
+  get frontX() { return this.fortX + (this.W - this.fortX) * 0.55; }
+  isRangedEnemy(t: Ent | null) { return !!t && (t.behavior === 'ranged' || t.behavior === 'caster' || t.behavior === 'healer' || t.behavior === 'summoner'); }
   toast(msg: string) { this.hooks.toast(msg); }
 
   // ---------------------------------------------------------------- pools
@@ -158,7 +161,7 @@ export class World {
     const e = this.acquire();
     e.alive = true; e.team = 1; e.kind = 'enemy'; e.cls = id; e.behavior = d.behavior; e.role = 'enemy';
     e.x = x; e.y = y; e.r = d.radius; e.facing = -1;
-    let hp = d.hp * 0.8 * enemyHpScale(w) * (o.hpMul || 1);
+    let hp = d.hp * (1.25 + Math.min(0.55, (w - 1) * 0.11)) * enemyHpScale(w) * (o.hpMul || 1);
     let dmg = d.dmg * 2.5 * enemyDmgScale(w) * (o.dmgMul || 1);
     if (mod === 'armored') hp *= 1.6;
     if (mod === 'fury') dmg *= 1.4;
@@ -333,6 +336,7 @@ export class World {
     if (ranged) {
       let best: Ent | null = null, bs = Infinity;
       this.enemyGrid.query(e.x, e.y, e.range + 50, (t, d2) => {
+        if (t.x > this.frontX + e.range) return;
         let s = Math.sqrt(d2);
         if (t.behavior === 'healer') s -= 110;
         if (t.flying) s -= 50;
@@ -355,12 +359,13 @@ export class World {
       }
     }
     // hunt mode: when only a few demons remain, everyone goes after them
-    if (this.enemies.length <= 6) return this.enemyGrid.nearest(e.x, e.y, 3000);
+    const lim = this.frontX + 60;
+    if (this.enemies.length <= 6) return this.enemyGrid.nearest(e.x, e.y, 3000, (t) => t.x < lim + (this.isRangedEnemy(t) ? 120 : 0));
     const aggro = e.behavior === 'knight' ? 360 : e.kind === 'summon' ? 300 : 235;
     // stay leashed to the home position unless an enemy is close
     const fromHome = Math.hypot(e.x - e.homeX, e.y - e.homeY);
     const r = fromHome > 320 ? 70 : aggro;
-    return this.enemyGrid.nearest(e.x, e.y, r, (t) => !(t.flying && t.z > 30 && e.range < 30 && Math.random() < 0.3));
+    return this.enemyGrid.nearest(e.x, e.y, r, (t) => t.x < lim + (this.isRangedEnemy(t) ? 120 : 0));
   }
 
   private crit(e: Ent): boolean {
@@ -618,10 +623,11 @@ export class World {
     });
   }
 
-  densestEnemy(x: number, y: number, r: number): Ent | null {
+  densestEnemy(x: number, y: number, r: number, maxX = Infinity): Ent | null {
     let best: Ent | null = null, bc = 0;
     let checks = 0;
     this.enemyGrid.query(x, y, r, (t) => {
+      if (t.x > maxX) return;
       if (checks++ > 40) return true;
       const c = this.enemyGrid.count(t.x, t.y, 60) + (t.kind === 'boss' ? 6 : 0);
       if (c > bc) { bc = c; best = t; }
@@ -688,7 +694,7 @@ export class World {
       const dx = t.x - e.x, dy = t.y - e.y;
       const dist = Math.hypot(dx, dy);
       e.facing = dx >= 0 ? 1 : -1;
-      const reach = e.range + t.r + 2;
+      const reach = (this.isRangedEnemy(e) ? Math.min(e.range, 150) : e.range) + t.r + 2;
       if (b === 'bomber') {
         if (dist < 18 + t.r) { this.explodeBomber(e); return; }
         this.moveToward(e, t.x, t.y, e.speed, dt);
@@ -977,7 +983,12 @@ export class World {
       this.enemyGrid.query(e.x, e.y, e.r * 2 + 4, (b) => { if (b.id > e.id && b.kind !== 'boss' && b.flying === e.flying) push(e, b, 0.5); });
     }
     const top = this.fieldTop - 10, bot = this.fieldBot + 8;
-    for (const a of this.allies) { a.y = clamp(a.y, top, bot); a.x = clamp(a.x, this.fortX + 4, this.W - 20); }
+    const fx = this.frontX;
+    for (const a of this.allies) {
+      a.y = clamp(a.y, top, bot);
+      const lim = fx + (a.target && a.target.alive && this.isRangedEnemy(a.target) ? 160 : 0);
+      a.x = clamp(a.x, this.fortX + 4, lim);
+    }
     for (const e of this.enemies) { e.y = clamp(e.y, top, bot); if (e.x < this.fortX + 6) e.x = this.fortX + 6; }
   }
 
@@ -1008,14 +1019,14 @@ export class World {
     else if (e.kind === 'summon') s.setTint(0xffffff).setAlpha(0.85);
     else s.clearTint();
     if (e.shd) {
-      const w = e.kind === 'boss' ? 4.2 : e.kind === 'hero' ? 2.2 : e.miniboss ? 2.6 : e.large ? 1.5 : e.cls === 'knight' || e.cls === 'hound' ? 1.2 : 0.8;
+      const w = e.kind === 'boss' ? 4.2 : e.kind === 'hero' ? 1.4 : e.miniboss ? 2.6 : e.large ? 1.5 : e.cls === 'knight' || e.cls === 'hound' ? 1.2 : 0.8;
       e.shd.setPosition(e.x, e.y + 1).setScale(w * persp, w * persp).setAlpha(e.flying ? 0.5 : 0.9);
     }
     if (e.aura) {
-      e.aura.setPosition(e.x, e.y - (e.kind === 'boss' ? 60 : e.kind === 'hero' ? 34 : e.miniboss ? 30 : 6)).setDepth(9 + e.y);
+      e.aura.setPosition(e.x, e.y - (e.kind === 'boss' ? 60 : e.kind === 'hero' ? 24 : e.miniboss ? 30 : 6)).setDepth(9 + e.y);
       const pulse = 1 + Math.sin(this.time * 3 + e.id) * 0.08;
       if (e.kind === 'boss') e.aura.setScale(4.2 * pulse);
-      else if (e.kind === 'hero') e.aura.setScale(2.4 * pulse);
+      else if (e.kind === 'hero') e.aura.setScale(1.5 * pulse);
       else if (e.miniboss) e.aura.setScale(2.4 * pulse);
       else e.aura.setScale(0.9 * pulse, 0.45 * pulse);
     }

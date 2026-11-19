@@ -23,7 +23,7 @@ export interface HeroRt {
   slot: number;
 }
 
-export const HERO_SCALE = 2.1;
+export const HERO_SCALE = 1.4; // a bit taller than troops (1.8 on 32px frames), not a giant
 
 export class HeroCtl {
   w: World;
@@ -102,7 +102,7 @@ export class HeroCtl {
   homeFor(rt: HeroRt) {
     const w = this.w;
     const run = G.run!;
-    const lineX = run.stance === 'def' ? w.fortX + 150 : run.stance === 'off' ? Math.max(w.fortX + 300, w.W * 0.5) : w.fortX + 250;
+    const lineX = Math.min(w.frontX - 30, run.stance === 'def' ? w.fortX + 150 : run.stance === 'off' ? w.frontX - 30 : w.fortX + (w.frontX - w.fortX) * 0.6);
     const x = rt.def.ranged ? lineX - 70 : lineX + 40;
     const mid = (w.fieldTop + w.fieldBot) / 2;
     const off = (rt.slot % 2 ? 1 : -1) * (40 + Math.floor(rt.slot / 2) * 70);
@@ -163,9 +163,10 @@ export class HeroCtl {
         let bd = Infinity;
         w.enemyGrid.query(w.fortX + 40, e.y, 600, (o, d2) => { if (o.atWall && d2 < bd) { bd = d2; t = o; } });
       }
-      if (!t && w.bossRef && w.bossRef.alive && Math.hypot(w.bossRef.x - e.x, w.bossRef.y - e.y) < 520) t = w.bossRef;
-      if (!t) t = w.enemyGrid.nearest(e.x, e.y, rt.def.ranged ? rt.def.range + 120 : 480);
-      if (!t && w.enemies.length <= 8) t = w.enemyGrid.nearest(e.x, e.y, 3000);
+      const lim = w.frontX + (rt.def.ranged ? rt.def.range : 60);
+      if (!t && w.bossRef && w.bossRef.alive && w.bossRef.x < lim + 80 && Math.hypot(w.bossRef.x - e.x, w.bossRef.y - e.y) < 520) t = w.bossRef;
+      if (!t) t = w.enemyGrid.nearest(e.x, e.y, rt.def.ranged ? rt.def.range + 120 : 480, (o) => o.x < lim);
+      if (!t && w.enemies.length <= 8) t = w.enemyGrid.nearest(e.x, e.y, 3000, (o) => o.x < lim + 120);
       e.target = t;
     }
     const t = e.target;
@@ -218,26 +219,27 @@ export class HeroCtl {
   private makeTele(rt: HeroRt, e: Ent, ab: HeroAbility): Tele | null {
     const w = this.w;
     const shapes: Shape[] = [];
-    const enemiesNear = w.enemyGrid.count(e.x, e.y, 700);
+    let enemiesNear = 0;
+    w.enemyGrid.query(e.x, e.y, 700, (o) => { if (o.x < w.frontX + 260) enemiesNear++; });
     const needsEnemies = ab.dmg > 0 || ab.effect === 'stun';
     if (needsEnemies && enemiesNear === 0 && !(ab.shape === 'field' && w.enemies.length > 0)) return null;
     switch (ab.shape) {
       case 'circle': {
-        const c = w.densestEnemy(e.x, e.y, 700);
+        const c = w.densestEnemy(e.x, e.y, 700, w.frontX + 260);
         if (!c) return null;
         shapes.push({ kind: 'circle', x: c.x, y: c.y, r: ab.radius || 80 });
         break;
       }
       case 'multi': {
         const n = ab.count || 4;
-        const pool = w.enemies.filter((q) => Math.hypot(q.x - e.x, q.y - e.y) < 900);
+        const pool = w.enemies.filter((q) => q.x < w.frontX + 260 && Math.hypot(q.x - e.x, q.y - e.y) < 900);
         if (!pool.length) return null;
         for (let i = 0; i < n; i++) { const q = pool[Math.floor(Math.random() * pool.length)]; shapes.push({ kind: 'circle', x: q.x + rand(-12, 12), y: q.y + rand(-10, 10), r: ab.radius || 50 }); }
         break;
       }
       case 'rect':
       case 'cone': {
-        const c = w.densestEnemy(e.x, e.y, ab.shape === 'cone' ? (ab.length || 380) + 50 : 900);
+        const c = w.densestEnemy(e.x, e.y, ab.shape === 'cone' ? (ab.length || 380) + 50 : 900, w.frontX + 260);
         if (!c) return null;
         const ang = Math.atan2(c.y - e.y, c.x - e.x);
         shapes.push(ab.shape === 'rect' ? { kind: 'rect', x: e.x, y: e.y, ang, len: ab.length || 500, w: ab.width || 60 } : { kind: 'cone', x: e.x, y: e.y - 10, ang, len: ab.length || 380, spread: ab.spread || 0.6 });

@@ -26,7 +26,7 @@ export const REGIONS: RegionDef[] = [
   {
     id: 0, name: 'Floresta Corrompida', subtitle: 'Onde a fenda se abriu', ground: ['#4f8a2f', '#3a6b22', '#6aa83c'], corruption: '#5a1f4a', accent: '#ff3b5c',
     decor: 'forest', ambient: 'fireflies', miniboss: 'brute', boss: 'mordrak', music: 0,
-    pool: [{ id: 'imp', w: 10, from: 1 }, { id: 'archer', w: 3, from: 3 }, { id: 'hound', w: 3, from: 4 }, { id: 'brute', w: 1.5, from: 6 }],
+    pool: [{ id: 'imp', w: 10, from: 1 }, { id: 'archer', w: 3, from: 3 }, { id: 'hound', w: 3.5, from: 4 }, { id: 'brute', w: 1.5, from: 5 }],
     palette: { skin: '#c8323c', skinDark: '#7a1624', skinLight: '#ff6a5e', horn: '#e8d6b0', eye: '#ffe14a', glow: '#ff7a2a', armor: '#3b2a3f', armorDark: '#22152a', cloth: '#5b1f3a' },
   },
   {

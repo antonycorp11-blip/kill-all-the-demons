@@ -4,25 +4,29 @@ import type Phaser from 'phaser';
 import { UPGRADES, upgradeCost, SKILLS, skillCost } from './data/upgrades';
 import { CLASSES, type ClassId } from './data/units';
 import type { BattleScene } from './scenes/BattleScene';
+import { tryRecruit } from './battle/army';
 
 // Stateful modules are passed in from main.ts so HMR can't hand us duplicate instances.
 export function installDev(game: Phaser.Game, deps: { G: any; save: () => void; UI: any; invalidateMods: () => void; getMods: () => any }) {
   const { G, save, UI, invalidateMods, getMods } = deps;
   Object.assign(window as any, { __G: G, __UI: UI, __getMods: getMods });
-  (window as any).__bot = (simSeconds: number, opts: { region?: number; meta?: Record<string, number>; fresh?: boolean } = {}) => {
+  (window as any).__bot = (simSeconds: number, opts: { region?: number; meta?: Record<string, number>; fresh?: boolean; passive?: boolean } = {}) => {
     const sc = game.scene.getScene('Battle') as BattleScene;
     if (opts.meta) { G.meta.tree = { ...opts.meta }; invalidateMods(); }
     if (opts.fresh !== false) { UI.hideScreen(); sc.newExpedition(opts.region ?? 0); }
     const run = G.run!;
     run.autoBless = true;
+    if (opts.passive) run.autoSkills = false;
     const log: string[] = [];
     let t = 0, nextBuy = 0, nextLog = 30;
     const step = (sc as any).step.bind(sc);
     while (t < simSeconds && sc.mode === 'run') {
       step(1 / 30); t += 1 / 30;
       if (sc.waves.state === 'cleared' && sc.waves.clearT <= 0) sc.waves.start(run.wave);
-      if (t >= nextBuy) {
+      if (t >= nextBuy && !opts.passive) {
         nextBuy = t + 3;
+        // an attentive player keeps pressing Convocar while there is room and gold
+        let k = 0; while (k++ < 20 && tryRecruit(sc.world, false)) { /* recruit */ }
         for (const c of ['swordsman', 'guardian', 'healer', 'lancer', 'mage', 'summoner', 'knight'] as ClassId[]) {
           const cost = Math.ceil(CLASSES[c].unlockGold * UI.unlockScale());
           if (!run.unlocked.includes(c) && run.gold > cost * 1.5) { run.gold -= cost; run.unlocked.push(c); }

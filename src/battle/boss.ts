@@ -129,7 +129,7 @@ export class BossCtl {
     e.atkT -= dt; e.atkAnim -= dt; e.hurt -= dt;
     if (e.frozen > 0) { e.frozen -= dt * 3; return; }
     if (c.tele) return;
-    const holdX = w.fortX + (w.W - w.fortX) * c.holdX;
+    const holdX = w.fortX + (w.W - w.fortX) * Math.min(c.holdX, 0.5); // bosses cross the midline to fight
     // attack nearby allies
     const t = w.allyGrid.nearest(e.x, e.y, e.range + 40);
     if (t) {

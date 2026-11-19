@@ -47,7 +47,7 @@ export const MAX_STARS = 5;
 
 export const HEROES: Record<string, HeroDef> = {
   arthon: {
-    id: 'arthon', name: 'Arthon', title: 'o Paladino Solar', role: 'Tanque / Suporte', hp: 40, dmg: 5, armor: 80, range: 34, atkCd: 1.3, speed: 55, radius: 14, splash: 50, ranged: false, aura: 0xffd24a,
+    id: 'arthon', name: 'Arthon', title: 'o Paladino Solar', role: 'Tanque / Suporte', hp: 28.0, dmg: 2.5, armor: 80, range: 34, atkCd: 1.3, speed: 55, radius: 10, splash: 50, ranged: false, aura: 0xffd24a,
     desc: 'Muralha sagrada. Atordoa grupos e protege o exército com escudos de luz.',
     abilities: [
       { id: 'hammer', name: 'Martelo Solar', desc: 'Golpe em área que atordoa por 1,5s.', shape: 'circle', telegraph: 0.8, cd: 9, dmg: 6, radius: 90, star: 1, effect: 'stun', duration: 1.5, color: 0xffd24a },
@@ -56,7 +56,7 @@ export const HEROES: Record<string, HeroDef> = {
     ],
   },
   lyra: {
-    id: 'lyra', name: 'Lyra', title: 'Arqueira Lunar', role: 'Dano à distância', hp: 20, dmg: 4, armor: 20, range: 300, atkCd: 0.9, speed: 62, radius: 11, splash: 0, ranged: true, proj: 'arrow', projTint: 0x9affff, aura: 0x8affff,
+    id: 'lyra', name: 'Lyra', title: 'Arqueira Lunar', role: 'Dano à distância', hp: 14.0, dmg: 2.0, armor: 20, range: 260, atkCd: 0.9, speed: 62, radius: 10, splash: 0, ranged: true, proj: 'arrow', projTint: 0x9affff, aura: 0x8affff,
     desc: 'Dispara três flechas por vez e cobre o campo com chuvas lunares.',
     abilities: [
       { id: 'moonrain', name: 'Chuva Lunar', desc: 'Seis chuvas de flechas sobre os demônios.', shape: 'multi', telegraph: 0.8, cd: 8, dmg: 4, radius: 55, count: 6, star: 1, color: 0x8affff },
@@ -65,7 +65,7 @@ export const HEROES: Record<string, HeroDef> = {
     ],
   },
   elandra: {
-    id: 'elandra', name: 'Elandra', title: 'a Arquimaga', role: 'Magia em área', hp: 16, dmg: 5, armor: 10, range: 260, atkCd: 1.5, speed: 50, radius: 11, splash: 70, ranged: true, proj: 'orb', projTint: 0xc08aff, aura: 0xb05aff,
+    id: 'elandra', name: 'Elandra', title: 'a Arquimaga', role: 'Magia em área', hp: 11.2, dmg: 2.5, armor: 10, range: 260, atkCd: 1.5, speed: 50, radius: 10, splash: 70, ranged: true, proj: 'orb', projTint: 0xc08aff, aura: 0xb05aff,
     desc: 'Orbes explosivos, tempestades em corrente e meteoros devastadores.',
     abilities: [
       { id: 'storm', name: 'Tempestade Arcana', desc: 'Relâmpago que salta entre 12 demônios.', shape: 'chain', telegraph: 0.5, cd: 7, dmg: 4, count: 12, star: 1, color: 0x9ae0ff },
@@ -74,7 +74,7 @@ export const HEROES: Record<string, HeroDef> = {
     ],
   },
   brannoc: {
-    id: 'brannoc', name: 'Brannoc', title: 'Senhor da Guerra', role: 'Corpo a corpo', hp: 30, dmg: 7, armor: 50, range: 34, atkCd: 1.0, speed: 75, radius: 14, splash: 60, ranged: false, aura: 0xff4a3a,
+    id: 'brannoc', name: 'Brannoc', title: 'Senhor da Guerra', role: 'Corpo a corpo', hp: 21.0, dmg: 3.5, armor: 50, range: 34, atkCd: 1.0, speed: 75, radius: 10, splash: 60, ranged: false, aura: 0xff4a3a,
     desc: 'Salta no meio da horda e gira o machado sem parar.',
     abilities: [
       { id: 'leap', name: 'Salto Devastador', desc: 'Salta até um grupo e esmaga tudo ao redor.', shape: 'circle', telegraph: 0.7, cd: 8, dmg: 7, radius: 100, star: 1, color: 0xff6a3a },
@@ -83,7 +83,7 @@ export const HEROES: Record<string, HeroDef> = {
     ],
   },
   seraphiel: {
-    id: 'seraphiel', name: 'Seraphiel', title: 'Anjo Guardião', role: 'Cura / Ressurreição', hp: 22, dmg: 2.5, armor: 30, range: 230, atkCd: 1.4, speed: 60, radius: 12, splash: 30, ranged: true, proj: 'holy', aura: 0xffffff,
+    id: 'seraphiel', name: 'Seraphiel', title: 'Anjo Guardião', role: 'Cura / Ressurreição', hp: 15.4, dmg: 1.25, armor: 30, range: 230, atkCd: 1.4, speed: 60, radius: 10, splash: 30, ranged: true, proj: 'holy', aura: 0xffffff,
     desc: 'Cura o exército inteiro e traz os caídos de volta à batalha.',
     abilities: [
       { id: 'radiance', name: 'Luz Curativa', desc: 'Cura 45% da vida dos aliados em grande área.', shape: 'self', telegraph: 0.5, cd: 8, dmg: 0, radius: 260, star: 1, effect: 'heal', power: 0.45, color: 0xfff6c0 },
@@ -92,7 +92,7 @@ export const HEROES: Record<string, HeroDef> = {
     ],
   },
   kael: {
-    id: 'kael', name: 'Kael', title: 'Cavaleiro Dragão', role: 'Investida', hp: 34, dmg: 6, armor: 60, range: 40, atkCd: 1.1, speed: 85, radius: 14, splash: 55, ranged: false, aura: 0x3affd0,
+    id: 'kael', name: 'Kael', title: 'Cavaleiro Dragão', role: 'Investida', hp: 23.8, dmg: 3.0, armor: 60, range: 40, atkCd: 1.1, speed: 85, radius: 10, splash: 55, ranged: false, aura: 0x3affd0,
     desc: 'Atravessa a horda em investidas e cospe fogo de dragão.',
     abilities: [
       { id: 'charge', name: 'Investida Dracônica', desc: 'Atravessa os demônios em linha reta.', shape: 'rect', telegraph: 0.7, cd: 9, dmg: 7, width: 80, length: 520, star: 1, effect: 'stun', duration: 0.8, color: 0x3affd0 },

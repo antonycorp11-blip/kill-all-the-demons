@@ -27,9 +27,9 @@ export function getMods(): Mods {
     regen: upLv('regen') * 0.002 + traitLv('t_regen') * 0.005 + treeLv('m_regen') * 0.003,
     xp: (1 + upLv('xp') * 0.12) * (1 + treeLv('m_xp') * 0.15),
     gold: (1 + upLv('gold') * 0.08) * Math.pow(1.15, treeLv('m_gold')) * (1 + 0.25 * traitLv('t_loot')) * sh,
-    fortMax: 500 * Math.pow(1.12, upLv('fort')) * Math.pow(1.25, treeLv('m_fort')) * (1 + 0.25 * traitLv('t_wall')),
+    fortMax: 300 * Math.pow(1.12, upLv('fort')) * Math.pow(1.25, treeLv('m_fort')) * (1 + 0.25 * traitLv('t_wall')),
     fortRegen: upLv('fregen') * 0.002,
-    recruitInterval: 4.2 * Math.pow(0.92, upLv('recruit')) * (1 - treeLv('m_recruit') * 0.06) * Math.pow(0.85, traitLv('t_horde')),
+    recruitInterval: 7 * Math.pow(0.9, upLv('recruit')) * (1 - treeLv('m_recruit') * 0.06) * Math.pow(0.85, traitLv('t_horde')),
     recruitCost: Math.pow(0.95, upLv('rcost')) * Math.pow(0.95, treeLv('m_rcost')),
     cap: 6 + upLv('cap') * 3 + treeLv('m_cap') * 3 + traitLv('t_horde') * 5,
     legacy: (0.06 + treeLv('m_legacy') * 0.04) * (traitLv('t_legacy') ? 2 : 1),
@@ -42,7 +42,7 @@ export function getMods(): Mods {
     startLevels: treeLv('m_elite') + traitLv('t_vets') * 2,
     frontDR: traitLv('t_phalanx') * 0.15,
     meleeSplash: traitLv('t_blast') * 0.25,
-    fortBetween: 0.1 + treeLv('m_fregen') * 0.04,
+    fortBetween: 0.03 + treeLv('m_fregen') * 0.04,
     interest: treeLv('m_interest') * 0.01,
     blessChoices: 3 + treeLv('m_bless'),
     heroPower: (1 + treeLv('h_power') * 0.25) * sh,
@@ -55,7 +55,7 @@ export function getMods(): Mods {
 }
 
 // Wave scaling curves -----------------------------------------------------
-export function enemyHpScale(wave: number) { return Math.pow(1.165, wave - 1) * Math.pow(1.05, Math.max(0, wave - 12)) * Math.pow(1.03, Math.max(0, wave - 30)) * (1 + wave * 0.01); }
+export function enemyHpScale(wave: number) { return Math.pow(1.18, wave - 1) * Math.pow(1.04, Math.max(0, wave - 12)) * Math.pow(1.03, Math.max(0, wave - 30)) * (1 + wave * 0.01); }
 export function enemyDmgScale(wave: number) { return Math.pow(1.18, wave - 1) * Math.pow(1.02, Math.max(0, wave - 12)); }
 export function enemyGoldScale(wave: number) { return Math.pow(1.125, wave - 1); }
 export function enemyArmorAdd(wave: number) { return Math.min(80, wave * 0.8); }

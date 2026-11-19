@@ -99,7 +99,7 @@ export function newRun(startRegion: number): RunState {
   const classEnabled: Record<string, boolean> = {};
   for (const c of CLASS_ORDER) classEnabled[c] = true;
   const startWave = startRegion * WAVES_PER_REGION + 1;
-  const startGold = Math.floor(40 * Math.pow(1.8, treeLv('m_startgold')) - 40) + 25 + (startRegion > 0 ? Math.floor(25 * startWave * Math.pow(1.125, startWave - 1)) : 0);
+  const startGold = Math.floor(40 * Math.pow(1.8, treeLv('m_startgold')) - 40) + 20 + (startRegion > 0 ? Math.floor(25 * startWave * Math.pow(1.125, startWave - 1)) : 0);
   return {
     active: true, wave: startWave, startWave, gold: startGold, fortHp: -1, upgrades: {}, mastery, unlocked,
     weights: { front: 40, ranged: 35, support: 15, special: 10 }, classEnabled, stance: 'bal', autoRecruit: true, autoBless: false, autoSkills: true,
