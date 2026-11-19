@@ -161,8 +161,8 @@ export class World {
     const e = this.acquire();
     e.alive = true; e.team = 1; e.kind = 'enemy'; e.cls = id; e.behavior = d.behavior; e.role = 'enemy';
     e.x = x; e.y = y; e.r = d.radius; e.facing = -1;
-    let hp = d.hp * (1.25 + Math.min(0.55, (w - 1) * 0.11)) * enemyHpScale(w) * (o.hpMul || 1);
-    let dmg = d.dmg * 2.5 * enemyDmgScale(w) * (o.dmgMul || 1);
+    let hp = d.hp * (1.2 + Math.min(0.8, (w - 1) * 0.1)) * enemyHpScale(w) * (o.hpMul || 1);
+    let dmg = d.dmg * (2.4 + Math.min(0.5, (w - 1) * 0.06)) * enemyDmgScale(w) * (o.dmgMul || 1);
     if (mod === 'armored') hp *= 1.6;
     if (mod === 'fury') dmg *= 1.4;
     e.maxHp = e.hp = hp; e.dmg = dmg;

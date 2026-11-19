@@ -29,11 +29,13 @@ export class HeroCtl {
   w: World;
   list: HeroRt[] = [];
   gfx: Phaser.GameObjects.Graphics;
+  bars: Phaser.GameObjects.Graphics;
   onAbility: (rt: HeroRt, ab: HeroAbility) => void = () => {};
 
   constructor(w: World) {
     this.w = w;
     this.gfx = w.scene.add.graphics().setDepth(4.5);
+    this.bars = w.scene.add.graphics().setDepth(9400);
   }
 
   stars(id: string) { return G.run?.heroes[id] || 0; }
@@ -118,6 +120,24 @@ export class HeroCtl {
         continue;
       }
       this.think(rt, e, dt);
+    }
+    this.drawBars();
+  }
+
+  /** Health bar (and shield) floating over each hero's head so they can be watched in the crowd. */
+  drawBars() {
+    const g = this.bars;
+    g.clear();
+    for (const rt of this.list) {
+      const e = rt.e;
+      if (!e || !e.alive) continue;
+      const w = 38, h = 5;
+      const x = e.x - w / 2, y = e.y - e.z - 74;
+      const p = Math.max(0, e.hp / e.maxHp);
+      g.fillStyle(0x0c0614, 0.85).fillRect(x - 1, y - 1, w + 2, h + 2);
+      g.fillStyle(p > 0.5 ? 0x5aff8a : p > 0.25 ? 0xffd24a : 0xff4a3a, 1).fillRect(x, y, w * p, h);
+      if (e.shield > 0) g.fillStyle(0xfff2b0, 0.9).fillRect(x, y - 3, w * Math.min(1, e.shield / e.maxHp), 2);
+      g.fillStyle(rt.def.aura, 1).fillRect(x - 4, y - 1, 3, h + 2);
     }
   }
 
@@ -401,7 +421,7 @@ export class HeroCtl {
     else audio.play(ab.effect === 'heal' || ab.effect === 'revive' ? 'bless' : 'promote', 0.6);
   }
 
-  clear() { this.list = []; this.gfx.clear(); }
+  clear() { this.list = []; this.gfx.clear(); this.bars.clear(); }
 
   /** Remaining cooldown fraction of the first ready-able ability (for HUD). */
   cdFrac(rt: HeroRt): number {

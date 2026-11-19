@@ -434,3 +434,17 @@ input[type=range] { pointer-events: auto; accent-color: var(--gold); }
 #wallalert.on { opacity: 1; animation: wallpulse .5s infinite alternate; }
 @keyframes wallpulse { from { filter: brightness(1); } to { filter: brightness(1.6); } }
 .region .rbonus.cp { color: #7affb0; }
+
+/* per-class recruit squares (bottom-left) */
+.recruitbox { position: relative; display: flex; flex-direction: column; justify-content: center; padding: 4px 6px 8px; }
+.rgrid { display: grid; grid-template-columns: repeat(5, 46px); grid-auto-rows: 31px; gap: 3px; }
+.rsq { position: relative; border-radius: 8px; background: radial-gradient(circle at 50% 35%, #5a3a8a, #1e1034); border: 2px solid #c8a04a; display: flex; align-items: flex-start; justify-content: center; overflow: hidden; }
+.rsq img { width: 28px; height: 28px; image-rendering: pixelated; margin-top: -1px; }
+.rsq b { position: absolute; left: 0; right: 0; bottom: 0; font-family: var(--font-h); font-weight: normal; font-size: 10px; text-align: center; color: #ffe08a; background: rgba(8,4,16,.72); line-height: 11px; }
+.rsq.poor { filter: grayscale(.8) brightness(.6); border-color: #5a4a6a; }
+.rsq:active { transform: translateY(1px); }
+.rsq:hover { filter: brightness(1.15); }
+.recruitbox .rbar { position: absolute; left: 8px; right: 8px; bottom: 3px; height: 3px; border-radius: 2px; background: #0008; overflow: hidden; }
+.recruitbox .rbar i { display: block; height: 100%; background: #ffe08a; }
+.bottombar .recruitbox { margin-right: auto; }
+.bottombar .skillrow { margin-left: auto; }

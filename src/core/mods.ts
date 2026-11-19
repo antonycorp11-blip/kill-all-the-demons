@@ -47,7 +47,8 @@ export function getMods(): Mods {
     blessChoices: 3 + treeLv('m_bless'),
     heroPower: (1 + treeLv('h_power') * 0.25) * sh,
     heroRespawn: 25 * Math.max(0.3, 1 - treeLv('h_respawn') * 0.1),
-    heroSlots: Math.min(6, 2 + treeLv('h_slots')),
+    // +1 hero slot at army levels 6, 12 and 18 (plus the Salão dos Heróis node)
+    heroSlots: Math.min(6, 2 + treeLv('h_slots') + Math.min(3, Math.floor((G.run?.armyLevel || 1) / 6))),
   };
   m.recruitInterval = Math.max(0.35, m.recruitInterval);
   cached = m;

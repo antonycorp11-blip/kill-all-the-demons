@@ -133,9 +133,8 @@ class UIManager {
       </div>
     </div>
     <div class="bottombar">
-      <div class="summon" data-act="recruit">
-        <div class="cardart"><img class="ico big" id="h-rart"></div>
-        <div class="st"><div class="t1">Convocar</div><div class="cost">${iconImg('coin', 'ico tiny')}<b id="h-rcost">0</b></div></div>
+      <div class="recruitbox plate">
+        <div class="rgrid" id="h-recruit"></div>
         <div class="rbar"><i id="h-rtimer"></i></div>
       </div>
       <div class="bbtn" data-act="open:classes">${iconImg('evo', 'ico mid')}<span>Classes</span><div class="badge hidden" id="b-classes">!</div></div>
@@ -147,6 +146,28 @@ class UIManager {
       </div>
     </div>`;
     this.hud.querySelectorAll('[id]').forEach((el) => { this.els[el.id] = el as HTMLElement; });
+  }
+
+  recruitKey = '';
+  /** One small square per unlocked class: tap to summon exactly that class. */
+  private renderRecruit() {
+    const run = G.run!;
+    const sc = this.scene!;
+    const box = this.els['h-recruit'];
+    const classes = CLASS_ORDER.filter((c) => run.unlocked.includes(c));
+    const key = classes.join(',');
+    if (key !== this.recruitKey) {
+      this.recruitKey = key;
+      box.innerHTML = classes.map((c) => `<div class="rsq" data-act="rc:${c}" title="${CLASSES[c].name}"><img src="${spriteIcon('cls_' + c)}"><b data-rc="${c}">0</b></div>`).join('');
+    }
+    const full = sc.world.armyCount() >= getMods().cap;
+    for (const c of classes) {
+      const cost = recruitCost(sc.world, c);
+      const b = box.querySelector(`[data-rc="${c}"]`) as HTMLElement | null;
+      if (!b) continue;
+      b.textContent = fmt(cost);
+      b.parentElement!.classList.toggle('poor', full || run.gold < cost);
+    }
   }
 
   statsCollapsed = false;
@@ -234,11 +255,7 @@ class UIManager {
     e['h-heal'].textContent = fmt(sc.world.live.heal);
     e['h-ucount'].textContent = String(sc.world.allies.length);
     e['h-kills'].textContent = fmt(run.stats.kills);
-    const cls = this.nextRecruitPreview();
-    const cost = cls ? recruitCost(sc.world, cls) : 0;
-    e['h-rcost'].textContent = fmt(cost);
-    if (cls && e['h-rart'].dataset.k !== cls) { (e['h-rart'] as HTMLImageElement).src = spriteIcon('cls_' + cls); e['h-rart'].dataset.k = cls; }
-    e['h-rcost'].closest('.summon')!.classList.toggle('poor', run.gold < cost || sc.world.armyCount() >= m.cap);
+    this.renderRecruit();
     e['h-rtimer'].style.width = `${run.autoRecruit ? Math.min(1, sc.recruitT / m.recruitInterval) * 100 : 0}%`;
     e['b-upg'].classList.toggle('hidden', !UPGRADES.some((u) => (u.max == null || (run.upgrades[u.id] || 0) < u.max) && upgradeCost(u, run.upgrades[u.id] || 0) <= run.gold));
     e['b-classes'].classList.toggle('hidden', !CLASS_ORDER.some((c) => (!run.unlocked.includes(c) && CLASSES[c].unlockGold * this.unlockScale() <= run.gold) || (run.unlocked.includes(c) && mergeCandidates(sc.world, c) > 0)));
@@ -522,9 +539,11 @@ class UIManager {
     audio.play('click');
   }
   closeModal() {
+    const was = this.modal;
     this.modal = null;
     this.modalEl.classList.remove('show');
     this.modalEl.innerHTML = '';
+    if (this.blessQueued && was !== 'blessing' && was !== 'result' && G.run && G.run.pendingBless > 0) setTimeout(() => { if (!this.modal && this.screen === null) this.openBlessing(); }, 120);
     this.nextPreview = null;
   }
 
@@ -878,7 +897,14 @@ class UIManager {
   // ================================================================ public hooks
   openPause() { if (!this.modal && G.run && !G.run.demo) this.openModal('pause'); }
   togglePause() { if (this.modal === 'pause') this.closeModal(); else if (!this.modal) this.openPause(); else if (this.modal && !['result', 'blessing', 'tutorial', 'confirm'].includes(this.modal)) this.closeModal(); }
-  openBlessing() { if (G.run && G.run.pendingBless > 0 && !this.modal) { this.blessChoices = []; this.openModal('blessing'); } }
+  openBlessing() { if (G.run && !G.run.demo && G.run.pendingBless > 0 && !this.modal) { this.blessQueued = false; this.blessChoices = []; this.openModal('blessing'); return true; } return false; }
+  /** Level up: show the hero cards right away; if another screen is open, show them as soon as it closes. */
+  blessQueued = false;
+  queueBlessing() {
+    this.blessQueued = true;
+    if (this.screen === null && this.openBlessing()) return;
+    this.toast('O exército evoluiu! Cartas de herói disponíveis.');
+  }
   flagBlessing() { this.toast('O exército evoluiu! Escolha uma carta de herói.'); }
   autoPickBlessing() {
     const run = G.run!;
@@ -966,7 +992,7 @@ class UIManager {
       case 'camp': this.showCamp('expedition'); audio.play('click'); break;
       case 'continue':
         audio.play('click');
-        if (G.run && G.run.active && !G.run.demo) { this.hideScreen(); this.showHud(); }
+        if (G.run && G.run.active && !G.run.demo) { this.hideScreen(); this.showHud(); if (G.run.pendingBless > 0) setTimeout(() => this.openBlessing(), 300); }
         break;
       case 'camptab': this.showCamp(a1 as CampTab); audio.play('click'); break;
       case 'start': {
@@ -984,6 +1010,7 @@ class UIManager {
       case 'pause': this.openPause(); break;
       case 'speed': G.settings.speed = G.settings.speed >= 3 ? 1 : G.settings.speed + 1; save(); this.updateHud(); audio.play('click'); break;
       case 'recruit': if (sc.manualRecruit()) this.nextPreview = null; break;
+      case 'rc': sc.manualRecruit(a1 as ClassId); break;
       case 'cast': if (run && run.skillLv[+a1] === 0) this.openModal('skills'); else sc.castSkill(+a1); break;
       case 'toggle':
         if (run) { (run as any)[a1] = !(run as any)[a1]; if (a1 === 'autoBless' && run.autoBless && run.pendingBless) this.autoPickBlessing(); }
@@ -1015,7 +1042,7 @@ class UIManager {
         this.renderModal(); break;
       }
       case 'bless':
-        if (a1 === 'later') { this.blessChoices = []; this.closeModal(); break; }
+        if (a1 === 'later') { this.blessQueued = false; this.blessChoices = []; this.closeModal(); break; }
         this.applyBlessing(a1);
         audio.play('level');
         this.blessChoices = [];

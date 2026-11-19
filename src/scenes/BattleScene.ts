@@ -303,8 +303,9 @@ export class BattleScene extends Phaser.Scene {
   onArmyLevel() {
     const run = G.run!;
     audio.play('level');
+    invalidateMods(); // hero slots grow with the army level
     if (run.autoBless || this.mode !== 'run') { UI.autoPickBlessing(); }
-    else UI.flagBlessing();
+    else UI.queueBlessing();
   }
 
   onDefeat() {
@@ -334,13 +335,13 @@ export class BattleScene extends Phaser.Scene {
   }
 
   // --------------------------------------------------------------- actions
-  manualRecruit() {
+  manualRecruit(cls?: ClassId) {
     if (this.mode !== 'run') return false;
     // with a big army one tap calls a whole squad (each recruit still costs gold)
     const batch = Math.max(1, Math.min(12, Math.floor(getMods().cap / 15)));
     let n = 0;
-    if (tryRecruit(this.world, true)) n++;
-    while (n > 0 && n < batch && tryRecruit(this.world, false)) n++;
+    if (tryRecruit(this.world, true, cls)) n++;
+    while (n > 0 && n < batch && tryRecruit(this.world, false, cls)) n++;
     if (n) { audio.play('buy'); if (n > 1) UI.toast(`+${n} tropas convocadas`); }
     return n > 0;
   }
@@ -425,7 +426,7 @@ export class BattleScene extends Phaser.Scene {
     if (run.autoRecruit) {
       this.recruitT += dt;
       // rebuild faster when the army is small
-      const interval = m.recruitInterval * (count < 3 ? 0.5 : 1);
+      const interval = m.recruitInterval * (count < 3 ? 0.35 : 1);
       if (this.recruitT >= interval) {
         this.recruitT = 0;
         tryRecruit(w, false);
@@ -433,7 +434,7 @@ export class BattleScene extends Phaser.Scene {
     }
     // free militia draft so the player is never stuck with no army
     this.draftT += dt;
-    if (count < 2 && this.draftT > m.recruitInterval * 1.5) {
+    if (count < 3 && this.draftT > 2.5) {
       this.draftT = 0;
       spawnRecruit(w, 'militia');
     }
